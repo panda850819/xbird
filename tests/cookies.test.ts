@@ -1,23 +1,33 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-type SweetCookieResult = { cookies: Array<{ name: string; value: string; domain?: string }>; warnings: string[] };
+type SweetCookieResult = {
+  cookies: Array<{
+    name: string;
+    value: string;
+    domain?: string;
+    source?: { browser?: string; profile?: string; storeId?: string };
+  }>;
+  warnings: string[];
+};
 
 const sweet = vi.hoisted(() => ({
   results: new Map<string, SweetCookieResult>(),
-  options: new Map<string, { timeoutMs?: number }>(),
+  options: new Map<string, { browsers?: string[]; chromiumBrowser?: string; origins?: string[]; timeoutMs?: number }>(),
 }));
 
 vi.mock('@steipete/sweet-cookie', () => ({
-  getCookies: vi.fn(async (options: { browsers?: string[]; timeoutMs?: number }) => {
-    const browser = options.browsers?.[0] ?? 'unknown';
-    sweet.options.set(browser, options);
-    return (
-      sweet.results.get(browser) ?? {
-        cookies: [],
-        warnings: [],
-      }
-    );
-  }),
+  getCookies: vi.fn(
+    async (options: { browsers?: string[]; chromiumBrowser?: string; origins?: string[]; timeoutMs?: number }) => {
+      const browser = options.chromiumBrowser ?? options.browsers?.[0] ?? 'unknown';
+      sweet.options.set(browser, options);
+      return (
+        sweet.results.get(browser) ?? {
+          cookies: [],
+          warnings: [],
+        }
+      );
+    },
+  ),
 }));
 
 describe('cookies', () => {
@@ -84,6 +94,32 @@ describe('cookies', () => {
       expect(result.cookies.cookieHeader).toContain('auth_token=safari_auth');
       expect(result.cookies.cookieHeader).toContain('ct0=safari_ct0');
       expect(result.cookies.source).toBe('Safari');
+    });
+
+    it('pins Arc to its canonical x.com cookie store', async () => {
+      sweet.results.set('arc', {
+        cookies: [
+          { name: 'auth_token', value: 'arc_auth', domain: 'x.com' },
+          { name: 'ct0', value: 'arc_ct0', domain: 'x.com' },
+          { name: 'twid', value: 'u%3D123', domain: 'x.com' },
+        ],
+        warnings: [],
+      });
+
+      const { resolveCredentials } = await import('../src/lib/cookies.js');
+      const result = await resolveCredentials({ cookieSource: 'arc' });
+
+      expect(result.cookies).toMatchObject({
+        authToken: 'arc_auth',
+        ct0: 'arc_ct0',
+        userId: '123',
+        source: 'Arc default profile',
+      });
+      expect(sweet.options.get('arc')).toMatchObject({
+        browsers: ['chrome'],
+        chromiumBrowser: 'arc',
+        origins: ['https://x.com/'],
+      });
     });
 
     it('uses firefox when enabled and returns cookies', async () => {
@@ -172,10 +208,10 @@ describe('cookies', () => {
       const result = await resolveCredentials({ cookieSource: 'safari' });
 
       expect(result.warnings).toContain(
-        'Missing auth_token - provide via --auth-token, AUTH_TOKEN env var, or login to x.com in Safari/Chrome/Firefox',
+        'Missing auth_token - provide via --auth-token, AUTH_TOKEN env var, or login to x.com in Safari/Chrome/Arc/Firefox',
       );
       expect(result.warnings).toContain(
-        'Missing ct0 - provide via --ct0, CT0 env var, or login to x.com in Safari/Chrome/Firefox',
+        'Missing ct0 - provide via --ct0, CT0 env var, or login to x.com in Safari/Chrome/Arc/Firefox',
       );
     });
 
@@ -194,6 +230,166 @@ describe('cookies', () => {
 
       expect(result.cookies.userId).toBe('12345');
       expect(result.cookies.cookieHeader).toContain('twid=u%3D12345');
+    });
+
+    it('does not mix twid from another browser store into a complete credential tuple', async () => {
+      sweet.results.set('chrome', {
+        cookies: [
+          {
+            name: 'auth_token',
+            value: 'chrome_auth',
+            domain: 'x.com',
+            source: { browser: 'chrome', profile: 'Default', storeId: 'chrome' },
+          },
+          {
+            name: 'ct0',
+            value: 'chrome_ct0',
+            domain: 'x.com',
+            source: { browser: 'chrome', profile: 'Default', storeId: 'chrome' },
+          },
+          {
+            name: 'twid',
+            value: 'u%3D999',
+            domain: 'x.com',
+            source: { browser: 'chrome', profile: 'Default', storeId: 'brave' },
+          },
+        ],
+        warnings: [],
+      });
+
+      const { resolveCredentials } = await import('../src/lib/cookies.js');
+      const result = await resolveCredentials({ cookieSource: 'chrome' });
+
+      expect(result.cookies.authToken).toBe('chrome_auth');
+      expect(result.cookies.userId).toBeNull();
+      expect(result.cookies.cookieHeader).not.toContain('twid=');
+    });
+
+    it('fails closed when multiple complete cookie tuples are present', async () => {
+      sweet.results.set('chrome', {
+        cookies: [
+          ...['auth_token', 'ct0', 'twid'].map((name) => ({
+            name,
+            value: name === 'twid' ? 'u%3D111' : `chrome_${name}`,
+            domain: 'x.com',
+            source: { browser: 'chrome', profile: 'Default', storeId: 'chrome' },
+          })),
+          ...['auth_token', 'ct0', 'twid'].map((name) => ({
+            name,
+            value: name === 'twid' ? 'u%3D222' : `brave_${name}`,
+            domain: 'x.com',
+            source: { browser: 'chrome', profile: 'Default', storeId: 'brave' },
+          })),
+        ],
+        warnings: [],
+      });
+
+      const { resolveCredentials } = await import('../src/lib/cookies.js');
+      const result = await resolveCredentials({ cookieSource: 'chrome' });
+
+      expect(result.cookies.authToken).toBeNull();
+      expect(result.cookies.ct0).toBeNull();
+      expect(result.warnings).toContain(
+        'Multiple complete Twitter cookie sets found; select a specific browser profile.',
+      );
+    });
+
+    it('fails closed when one cookie tuple contains conflicting values', async () => {
+      sweet.results.set('chrome', {
+        cookies: [
+          { name: 'auth_token', value: 'first_auth', domain: 'x.com' },
+          { name: 'auth_token', value: 'second_auth', domain: 'x.com' },
+          { name: 'ct0', value: 'shared_ct0', domain: 'x.com' },
+          { name: 'auth_token', value: 'first_auth', domain: 'twitter.com' },
+          { name: 'ct0', value: 'shared_ct0', domain: 'twitter.com' },
+        ],
+        warnings: [],
+      });
+
+      const { resolveCredentials } = await import('../src/lib/cookies.js');
+      const result = await resolveCredentials({ cookieSource: 'chrome' });
+
+      expect(result.cookies.authToken).toBeNull();
+      expect(result.warnings).toContain(
+        'Multiple complete Twitter cookie sets found; select a specific browser profile.',
+      );
+    });
+
+    it('fails closed when x.com and twitter.com contain different complete tuples', async () => {
+      const tuple = (domain: string, prefix: string) =>
+        ['auth_token', 'ct0'].map((name) => ({ name, value: `${prefix}_${name}`, domain }));
+      sweet.results.set('chrome', {
+        cookies: [...tuple('x.com', 'x'), ...tuple('twitter.com', 'twitter')],
+        warnings: [],
+      });
+
+      const { resolveCredentials } = await import('../src/lib/cookies.js');
+      const result = await resolveCredentials({ cookieSource: 'chrome' });
+
+      expect(result.cookies.authToken).toBeNull();
+      expect(result.warnings).toContain(
+        'Multiple complete Twitter cookie sets found; select a specific browser profile.',
+      );
+    });
+
+    it('selects the same-account tuple that carries twid', async () => {
+      sweet.results.set('chrome', {
+        cookies: [
+          { name: 'auth_token', value: 'shared_auth', domain: 'x.com' },
+          { name: 'ct0', value: 'shared_ct0', domain: 'x.com' },
+          { name: 'auth_token', value: 'shared_auth', domain: 'twitter.com' },
+          { name: 'ct0', value: 'shared_ct0', domain: 'twitter.com' },
+          { name: 'twid', value: 'u%3D111', domain: 'twitter.com' },
+        ],
+        warnings: [],
+      });
+
+      const { resolveCredentials } = await import('../src/lib/cookies.js');
+      const result = await resolveCredentials({ cookieSource: 'chrome' });
+
+      expect(result.cookies.authToken).toBe('shared_auth');
+      expect(result.cookies.userId).toBe('111');
+    });
+
+    it('treats encoded and decoded twid values for the same user as equal', async () => {
+      sweet.results.set('chrome', {
+        cookies: [
+          { name: 'auth_token', value: 'shared_auth', domain: 'x.com' },
+          { name: 'ct0', value: 'shared_ct0', domain: 'x.com' },
+          { name: 'twid', value: 'u%3D111', domain: 'x.com' },
+          { name: 'auth_token', value: 'shared_auth', domain: 'twitter.com' },
+          { name: 'ct0', value: 'shared_ct0', domain: 'twitter.com' },
+          { name: 'twid', value: 'u=111', domain: 'twitter.com' },
+        ],
+        warnings: [],
+      });
+
+      const { resolveCredentials } = await import('../src/lib/cookies.js');
+      const result = await resolveCredentials({ cookieSource: 'chrome' });
+
+      expect(result.cookies.userId).toBe('111');
+    });
+
+    it('fails closed when duplicate credentials have conflicting twid values', async () => {
+      sweet.results.set('chrome', {
+        cookies: [
+          { name: 'auth_token', value: 'shared_auth', domain: 'x.com' },
+          { name: 'ct0', value: 'shared_ct0', domain: 'x.com' },
+          { name: 'twid', value: 'u%3D111', domain: 'x.com' },
+          { name: 'auth_token', value: 'shared_auth', domain: 'twitter.com' },
+          { name: 'ct0', value: 'shared_ct0', domain: 'twitter.com' },
+          { name: 'twid', value: 'u%3D222', domain: 'twitter.com' },
+        ],
+        warnings: [],
+      });
+
+      const { resolveCredentials } = await import('../src/lib/cookies.js');
+      const result = await resolveCredentials({ cookieSource: 'chrome' });
+
+      expect(result.cookies.authToken).toBeNull();
+      expect(result.warnings).toContain(
+        'Multiple complete Twitter cookie sets found; select a specific browser profile.',
+      );
     });
 
     it('falls back to Chrome when enabled and Firefox disabled', async () => {

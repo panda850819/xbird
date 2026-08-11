@@ -19,7 +19,7 @@ import {
 
 ```ts
 const { cookies, warnings } = await resolveCredentials({
-  cookieSource: ['safari', 'chrome', 'firefox'],
+  cookieSource: ['safari', 'chrome', 'arc', 'firefox'],
   chromeProfile: 'Default',
   firefoxProfile: 'default-release',
   cookieTimeoutMs: 30_000,

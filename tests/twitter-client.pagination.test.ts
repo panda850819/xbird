@@ -180,11 +180,6 @@ describe('TwitterClient pagination for thread and replies', () => {
           ok: false,
           status: 500,
           text: async () => 'Internal Server Error',
-        })
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 500,
-          text: async () => 'Internal Server Error',
         });
 
       const client = new TwitterClient({ cookies: validCookies });
@@ -194,6 +189,7 @@ describe('TwitterClient pagination for thread and replies', () => {
       expect(result.tweets?.length).toBe(2);
       expect(result.error).toContain('500');
       expect(result.nextCursor).toBe('cursor-page-2');
+      expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
     it('continues pagination even when a page contains no replies', async () => {

@@ -106,7 +106,7 @@ Create one client and reuse it:
 import { TwitterClient, resolveCredentials } from '@panda850819/xbird';
 
 const { cookies, warnings } = await resolveCredentials({
-  cookieSource: ['safari', 'chrome', 'firefox'],
+  cookieSource: ['safari', 'chrome', 'arc', 'firefox'],
   cookieTimeoutMs: 30_000,
 });
 

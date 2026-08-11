@@ -121,13 +121,14 @@ Errors use `{ "ok": false, "error": { "code", "message" }, "meta" }`. Partial pa
 
 1. `--auth-token` and `--ct0`
 2. `AUTH_TOKEN` and `CT0`, with `TWITTER_AUTH_TOKEN` and `TWITTER_CT0` as fallbacks
-3. Browser cookies from Safari, Chrome, or Firefox through `@steipete/sweet-cookie`
+3. Browser cookies from Safari, Chrome, Arc, or Firefox through `@steipete/sweet-cookie`
 
 Choose a browser explicitly when needed:
 
 ```bash
 xbird --cookie-source firefox whoami
 xbird --cookie-source chrome --chrome-profile Default whoami
+xbird --cookie-source arc whoami
 ```
 
 ## Configuration
@@ -139,7 +140,7 @@ Precedence is CLI flags, environment variables, project config, then global conf
 
 ```json5
 {
-  cookieSource: ["firefox", "safari"],
+  cookieSource: ["arc"],
   firefoxProfile: "default-release",
   cookieTimeoutMs: 30000,
   timeoutMs: 20000,

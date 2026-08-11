@@ -7,7 +7,7 @@ All notable changes to `xbird` are documented here.
 ### Added
 
 - Bun-native `xbird` CLI and TypeScript library for X's web GraphQL API.
-- Browser-cookie authentication for Safari, Chrome, Brave, and Firefox.
+- Browser-cookie authentication for Safari, Chrome, Brave, Arc, and Firefox.
 - Commands for posts, replies, threads, search, mentions, home timelines, user timelines, bookmarks, likes, lists, followers, following, news, and trending topics.
 - Posting, replying, unbookmarking, and media uploads with alt text.
 - Stable JSON envelopes, typed error codes, dedicated exit codes, partial-result metadata, and rate-limit metadata.

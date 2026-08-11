@@ -13,6 +13,15 @@ import {
   unwrapTweetResult,
 } from './twitter-client-utils.js';
 
+function hasTwitterErrorCode(body: string, code: number): boolean {
+  try {
+    const parsed = JSON.parse(body) as { errors?: Array<{ code?: number }> };
+    return parsed.errors?.some((error) => error.code === code) ?? false;
+  } catch {
+    return false;
+  }
+}
+
 /** Options for tweet fetching methods */
 export interface TweetFetchOptions {
   /** Include raw GraphQL response in `_raw` field */
@@ -231,9 +240,6 @@ export function withTweetDetails<TBase extends AbstractConstructor<TwitterClient
           return { success: true as const, data: data.data ?? {} };
         };
 
-        let lastError: string | undefined;
-        let had404 = false;
-
         const tryOnce = async () => {
           const queryIds = await this.getTweetDetailQueryIds();
 
@@ -248,41 +254,37 @@ export function withTweetDetails<TBase extends AbstractConstructor<TwitterClient
               return await parseResponse(response);
             }
 
-            if (response.status === 404) {
-              had404 = true;
+            if (response.status === 401) {
+              const body = await response.text();
+              if (!hasTwitterErrorCode(body, 32)) {
+                return { success: false as const, error: this.formatHttpError(response, body) };
+              }
+            } else if (response.status !== 404) {
+              return await parseResponse(response);
             }
 
             const postResponse = await this.fetchWithTimeout(`${TWITTER_API_BASE}/${queryId}/TweetDetail`, {
               method: 'POST',
               headers: this.getHeaders(),
-              body: JSON.stringify({ variables, features, queryId }),
+              body: JSON.stringify({ variables, features, fieldToggles, queryId }),
             });
 
-            if (postResponse.status !== 404) {
-              return await parseResponse(postResponse);
+            if (postResponse.status === 404) {
+              continue;
             }
-
-            if (response.status !== 404) {
-              return await parseResponse(response);
-            }
-
-            lastError = 'HTTP 404';
+            return await parseResponse(postResponse);
           }
 
-          return { success: false as const, error: lastError ?? 'Unknown error fetching tweet detail' };
+          return null;
         };
 
         const firstAttempt = await tryOnce();
-        if (firstAttempt.success) {
+        if (firstAttempt) {
           return firstAttempt;
         }
 
-        if (had404) {
-          await this.refreshQueryIds();
-          return await tryOnce();
-        }
-
-        return firstAttempt;
+        await this.refreshQueryIds();
+        return (await tryOnce()) ?? { success: false as const, error: 'HTTP 404' };
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }

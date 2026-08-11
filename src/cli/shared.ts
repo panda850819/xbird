@@ -84,10 +84,10 @@ const COOKIE_SOURCES: CookieSource[] = ['safari', 'chrome', 'firefox'];
 
 function parseCookieSource(value: string): CookieSource {
   const normalized = value.trim().toLowerCase();
-  if (normalized === 'safari' || normalized === 'chrome' || normalized === 'firefox') {
+  if (normalized === 'safari' || normalized === 'chrome' || normalized === 'arc' || normalized === 'firefox') {
     return normalized;
   }
-  throw new Error(`Invalid --cookie-source "${value}". Allowed: safari, chrome, firefox.`);
+  throw new Error(`Invalid --cookie-source "${value}". Allowed: safari, chrome, arc, firefox.`);
 }
 
 export const collectCookieSource = (value: string, previous: CookieSource[] = []): CookieSource[] => {
