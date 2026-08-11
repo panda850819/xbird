@@ -3,13 +3,14 @@
  * Delegates to @steipete/sweet-cookie for Safari/Chrome/Firefox reads.
  */
 
-import { getCookies } from '@steipete/sweet-cookie';
+import { type Cookie as BrowserCookie, getCookies } from '@steipete/sweet-cookie';
 
 export interface TwitterCookies {
   authToken: string | null;
   ct0: string | null;
   cookieHeader: string | null;
   source: string | null;
+  userId?: string | null;
 }
 
 export interface CookieExtractionResult {
@@ -17,9 +18,11 @@ export interface CookieExtractionResult {
   warnings: string[];
 }
 
-export type CookieSource = 'safari' | 'chrome' | 'firefox';
+export type CookieSource = 'safari' | 'chrome' | 'arc' | 'firefox';
 
-const TWITTER_COOKIE_NAMES = ['auth_token', 'ct0'] as const;
+const TWITTER_COOKIE_NAMES = ['auth_token', 'ct0', 'twid'] as const;
+const TWID_USER_ID_PATTERN = /^u=(\d+)$/;
+const LEADING_DOT_PATTERN = /^\./;
 const TWITTER_URL = 'https://x.com/';
 const TWITTER_ORIGINS: string[] = ['https://x.com/', 'https://twitter.com/'];
 const DEFAULT_COOKIE_TIMEOUT_MS = 30_000;
@@ -32,8 +35,19 @@ function normalizeValue(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function cookieHeader(authToken: string, ct0: string): string {
-  return `auth_token=${authToken}; ct0=${ct0}`;
+function cookieHeader(authToken: string, ct0: string, twid?: string | null): string {
+  return `auth_token=${authToken}; ct0=${ct0}${twid ? `; twid=${twid}` : ''}`;
+}
+
+function userIdFromTwid(twid: string | null): string | null {
+  if (!twid) {
+    return null;
+  }
+  try {
+    return decodeURIComponent(twid).match(TWID_USER_ID_PATTERN)?.[1] ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function buildEmpty(): TwitterCookies {
@@ -71,32 +85,72 @@ function labelForSource(source: CookieSource, profile?: string): string {
   if (source === 'safari') {
     return 'Safari';
   }
-  if (source === 'chrome') {
-    return profile ? `Chrome profile "${profile}"` : 'Chrome default profile';
+  if (source === 'chrome' || source === 'arc') {
+    const browser = source === 'arc' ? 'Arc' : 'Chrome';
+    return profile ? `${browser} profile "${profile}"` : `${browser} default profile`;
   }
   return profile ? `Firefox profile "${profile}"` : 'Firefox default profile';
 }
 
-function pickCookieValue(
-  cookies: Array<{ name?: string; value?: string; domain?: string }>,
-  name: (typeof TWITTER_COOKIE_NAMES)[number],
-): string | null {
-  const matches = cookies.filter((c) => c?.name === name && typeof c.value === 'string');
-  if (matches.length === 0) {
-    return null;
+function selectCookieTuple(cookies: BrowserCookie[]): {
+  tuple: { authToken: string; ct0: string; twid: string | null } | null;
+  ambiguous: boolean;
+} {
+  const groups = new Map<
+    string,
+    {
+      domain: string;
+      values: Partial<Record<(typeof TWITTER_COOKIE_NAMES)[number], string>>;
+    }
+  >();
+
+  for (const cookie of cookies) {
+    const name = cookie.name as (typeof TWITTER_COOKIE_NAMES)[number];
+    const value = normalizeValue(cookie.value);
+    if (!TWITTER_COOKIE_NAMES.includes(name) || !value) {
+      continue;
+    }
+
+    const domain = (cookie.domain ?? '').replace(LEADING_DOT_PATTERN, '').toLowerCase();
+    const key = [domain, cookie.source?.browser, cookie.source?.profile, cookie.source?.storeId].join('|');
+    const group = groups.get(key) ?? { domain, values: {} };
+    if (group.values[name] && group.values[name] !== value) {
+      return { tuple: null, ambiguous: true };
+    }
+    group.values[name] = value;
+    groups.set(key, group);
   }
 
-  const preferred = matches.find((c) => (c.domain ?? '').endsWith('x.com'));
-  if (preferred?.value) {
-    return preferred.value;
+  const complete = [...groups.values()].filter((group) => group.values.auth_token && group.values.ct0);
+  if (complete.length === 0) {
+    return { tuple: null, ambiguous: false };
   }
 
-  const twitter = matches.find((c) => (c.domain ?? '').endsWith('twitter.com'));
-  if (twitter?.value) {
-    return twitter.value;
+  const first = complete[0].values;
+  const hasDifferentCredentials = complete.some(
+    ({ values }) => values.auth_token !== first.auth_token || values.ct0 !== first.ct0,
+  );
+  const candidates = complete.map((group) => ({
+    group,
+    userId: userIdFromTwid(group.values.twid ?? null),
+  }));
+  const userIds = new Set(candidates.flatMap(({ userId }) => (userId ? [userId] : [])));
+  if (hasDifferentCredentials || userIds.size > 1) {
+    return { tuple: null, ambiguous: true };
   }
 
-  return matches[0]?.value ?? null;
+  const selected =
+    candidates.find(({ group, userId }) => group.domain === 'x.com' && userId) ??
+    candidates.find(({ userId }) => userId) ??
+    candidates.find(({ group }) => group.domain === 'x.com') ??
+    candidates[0];
+  const authToken = selected?.group.values.auth_token;
+  const ct0 = selected?.group.values.ct0;
+  if (!authToken || !ct0) {
+    return { tuple: null, ambiguous: false };
+  }
+
+  return { tuple: { authToken, ct0, twid: selected.group.values.twid ?? null }, ambiguous: false };
 }
 
 async function readTwitterCookiesFromBrowser(options: {
@@ -108,11 +162,13 @@ async function readTwitterCookiesFromBrowser(options: {
   const warnings: string[] = [];
   const out = buildEmpty();
 
+  const isArc = options.source === 'arc';
   const { cookies, warnings: providerWarnings } = await getCookies({
     url: TWITTER_URL,
-    origins: TWITTER_ORIGINS,
+    origins: isArc ? [TWITTER_URL] : TWITTER_ORIGINS,
     names: [...TWITTER_COOKIE_NAMES],
-    browsers: [options.source],
+    browsers: [options.source === 'arc' ? 'chrome' : options.source],
+    chromiumBrowser: isArc ? 'arc' : undefined,
     mode: 'merge',
     chromeProfile: options.chromeProfile,
     firefoxProfile: options.firefoxProfile,
@@ -120,28 +176,27 @@ async function readTwitterCookiesFromBrowser(options: {
   });
   warnings.push(...providerWarnings);
 
-  const authToken = pickCookieValue(cookies, 'auth_token');
-  const ct0 = pickCookieValue(cookies, 'ct0');
-  if (authToken) {
-    out.authToken = authToken;
+  const selection = selectCookieTuple(cookies);
+  if (selection.ambiguous) {
+    warnings.push('Multiple complete Twitter cookie sets found; select a specific browser profile.');
   }
-  if (ct0) {
-    out.ct0 = ct0;
-  }
-
-  if (out.authToken && out.ct0) {
-    out.cookieHeader = cookieHeader(out.authToken, out.ct0);
+  if (selection.tuple) {
+    out.authToken = selection.tuple.authToken;
+    out.ct0 = selection.tuple.ct0;
+    out.cookieHeader = cookieHeader(out.authToken, out.ct0, selection.tuple.twid);
+    out.userId = userIdFromTwid(selection.tuple.twid);
     out.source = labelForSource(
       options.source,
-      options.source === 'chrome' ? options.chromeProfile : options.firefoxProfile,
+      options.source === 'chrome' || options.source === 'arc' ? options.chromeProfile : options.firefoxProfile,
     );
     return { cookies: out, warnings };
   }
 
   if (options.source === 'safari') {
     warnings.push('No Twitter cookies found in Safari. Make sure you are logged into x.com in Safari.');
-  } else if (options.source === 'chrome') {
-    warnings.push('No Twitter cookies found in Chrome. Make sure you are logged into x.com in Chrome.');
+  } else if (options.source === 'chrome' || options.source === 'arc') {
+    const browser = options.source === 'arc' ? 'Arc' : 'Chrome';
+    warnings.push(`No Twitter cookies found in ${browser}. Make sure you are logged into x.com in ${browser}.`);
   } else {
     warnings.push(
       'No Twitter cookies found in Firefox. Make sure you are logged into x.com in Firefox and the profile exists.',
@@ -157,6 +212,10 @@ export async function extractCookiesFromSafari(): Promise<CookieExtractionResult
 
 export async function extractCookiesFromChrome(profile?: string): Promise<CookieExtractionResult> {
   return readTwitterCookiesFromBrowser({ source: 'chrome', chromeProfile: profile });
+}
+
+export async function extractCookiesFromArc(profile?: string): Promise<CookieExtractionResult> {
+  return readTwitterCookiesFromBrowser({ source: 'arc', chromeProfile: profile });
 }
 
 export async function extractCookiesFromFirefox(profile?: string): Promise<CookieExtractionResult> {
@@ -221,11 +280,11 @@ export async function resolveCredentials(options: {
 
   if (!cookies.authToken) {
     warnings.push(
-      'Missing auth_token - provide via --auth-token, AUTH_TOKEN env var, or login to x.com in Safari/Chrome/Firefox',
+      'Missing auth_token - provide via --auth-token, AUTH_TOKEN env var, or login to x.com in Safari/Chrome/Arc/Firefox',
     );
   }
   if (!cookies.ct0) {
-    warnings.push('Missing ct0 - provide via --ct0, CT0 env var, or login to x.com in Safari/Chrome/Firefox');
+    warnings.push('Missing ct0 - provide via --ct0, CT0 env var, or login to x.com in Safari/Chrome/Arc/Firefox');
   }
   if (cookies.authToken && cookies.ct0) {
     cookies.cookieHeader = cookieHeader(cookies.authToken, cookies.ct0);

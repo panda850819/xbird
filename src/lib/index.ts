@@ -12,6 +12,7 @@ export {
 export {
   type CookieExtractionResult,
   type CookieSource,
+  extractCookiesFromArc,
   extractCookiesFromChrome,
   extractCookiesFromFirefox,
   extractCookiesFromSafari,

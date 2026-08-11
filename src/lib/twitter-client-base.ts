@@ -35,6 +35,7 @@ export abstract class TwitterClientBase {
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
     this.timeoutMs = options.timeoutMs;
     this.quoteDepth = normalizeQuoteDepth(options.quoteDepth);
+    this.clientUserId = options.cookies.userId ?? undefined;
     this.clientUuid = randomUUID();
     this.clientDeviceId = randomUUID();
   }

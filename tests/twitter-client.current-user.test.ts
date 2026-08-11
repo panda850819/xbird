@@ -86,6 +86,32 @@ describe('TwitterClient getCurrentUser', () => {
     expect(mockFetch).toHaveBeenCalledTimes(5);
   });
 
+  it('does not combine an unlinked HTML username with the twid user ID', async () => {
+    mockFetch
+      .mockResolvedValueOnce({ ok: false, status: 404, text: async () => 'not found' })
+      .mockResolvedValueOnce({ ok: false, status: 404, text: async () => 'not found' })
+      .mockResolvedValueOnce({ ok: false, status: 404, text: async () => 'not found' })
+      .mockResolvedValueOnce({ ok: false, status: 404, text: async () => 'not found' })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => '<html>"screen_name":"route-name","name":"Route Name"</html>',
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => '<html>"screen_name":"route-name","name":"Route Name"</html>',
+      });
+
+    const client = new TwitterClient({ cookies: { ...validCookies, userId: '999' } });
+    const result = await client.getCurrentUser();
+
+    expect(result.success).toBe(false);
+    expect(mockFetch.mock.calls[0]?.[1]).toMatchObject({
+      headers: expect.objectContaining({ 'x-twitter-client-user-id': '999' }),
+    });
+  });
+
   it('skips an endpoint when JSON parsing fails', async () => {
     mockFetch
       .mockResolvedValueOnce({
