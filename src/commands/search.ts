@@ -39,22 +39,18 @@ export function registerSearchCommands(program: Command, ctx: CliContext): void 
         }
 
         if (!cookies.authToken || !cookies.ct0) {
-          console.error(`${ctx.p('err')}Missing required credentials`);
-          process.exit(1);
+          ctx.fail(`Missing required credentials`);
         }
 
         const usePagination = cmdOpts.all || cmdOpts.cursor;
         if (maxPages !== undefined && !usePagination) {
-          console.error(`${ctx.p('err')}--max-pages requires --all or --cursor.`);
-          process.exit(1);
+          ctx.fail(`--max-pages requires --all or --cursor.`);
         }
         if (!usePagination && (!Number.isFinite(count) || count <= 0)) {
-          console.error(`${ctx.p('err')}Invalid --count. Expected a positive integer.`);
-          process.exit(1);
+          ctx.fail(`Invalid --count. Expected a positive integer.`);
         }
         if (maxPages !== undefined && (!Number.isFinite(maxPages) || maxPages <= 0)) {
-          console.error(`${ctx.p('err')}Invalid --max-pages. Expected a positive integer.`);
-          process.exit(1);
+          ctx.fail(`Invalid --max-pages. Expected a positive integer.`);
         }
 
         const client = new TwitterClient({ cookies, timeoutMs, quoteDepth });
@@ -73,8 +69,7 @@ export function registerSearchCommands(program: Command, ctx: CliContext): void 
             emptyMessage: 'No tweets found.',
           });
         } else {
-          console.error(`${ctx.p('err')}Search failed: ${result.error}`);
-          process.exit(1);
+          ctx.failWithTweets(`Search failed: ${result.error}`, result, { usePagination: Boolean(usePagination) });
         }
       },
     );
@@ -94,8 +89,7 @@ export function registerSearchCommands(program: Command, ctx: CliContext): void 
 
       const fromUserOpt = mentionsQueryFromUserOption(cmdOpts.user);
       if (fromUserOpt.error) {
-        console.error(`${ctx.p('err')}${fromUserOpt.error}`);
-        process.exit(2);
+        ctx.fail(`${fromUserOpt.error}`, { code: 'INVALID_USAGE' });
       }
 
       let query: string | null = fromUserOpt.query;
@@ -107,8 +101,7 @@ export function registerSearchCommands(program: Command, ctx: CliContext): void 
       }
 
       if (!cookies.authToken || !cookies.ct0) {
-        console.error(`${ctx.p('err')}Missing required credentials`);
-        process.exit(1);
+        ctx.fail(`Missing required credentials`);
       }
 
       const client = new TwitterClient({ cookies, timeoutMs, quoteDepth });
@@ -119,10 +112,7 @@ export function registerSearchCommands(program: Command, ctx: CliContext): void 
         if (handle) {
           query = `@${handle}`;
         } else {
-          console.error(
-            `${ctx.p('err')}Could not determine current user (${who.error ?? 'Unknown error'}). Use --user <handle>.`,
-          );
-          process.exit(1);
+          ctx.fail(`Could not determine current user (${who.error ?? 'Unknown error'}). Use --user <handle>.`);
         }
       }
 
@@ -135,8 +125,7 @@ export function registerSearchCommands(program: Command, ctx: CliContext): void 
           emptyMessage: 'No mentions found.',
         });
       } else {
-        console.error(`${ctx.p('err')}Failed to fetch mentions: ${result.error}`);
-        process.exit(1);
+        ctx.failWithTweets(`Failed to fetch mentions: ${result.error}`, result, { usePagination: false });
       }
     });
 }

@@ -28,7 +28,7 @@ export function withBookmarks<TBase extends AbstractConstructor<TwitterClientBas
       const parseResponse = async (response: Response): Promise<BookmarkMutationResult> => {
         if (!response.ok) {
           const text = await response.text();
-          return { success: false, error: `HTTP ${response.status}: ${text.slice(0, 200)}` };
+          return { success: false, error: this.formatHttpError(response, text) };
         }
 
         const data = (await response.json()) as { errors?: Array<{ message: string }> };

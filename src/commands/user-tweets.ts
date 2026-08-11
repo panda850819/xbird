@@ -49,42 +49,39 @@ export function registerUserTweetsCommand(program: Command, ctx: CliContext): vo
 
         const maxPagesParsed = parsePositiveIntFlag(cmdOpts.maxPages, '--max-pages');
         if (!maxPagesParsed.ok) {
-          console.error(`${ctx.p('err')}${maxPagesParsed.error}`);
-          process.exit(2);
+          ctx.fail(`${maxPagesParsed.error}`, { code: 'INVALID_USAGE' });
         }
         const maxPages = maxPagesParsed.value;
 
         const delayParsed = parseNonNegativeIntFlag(cmdOpts.delay, '--delay', 1000);
         if (!delayParsed.ok) {
-          console.error(`${ctx.p('err')}${delayParsed.error}`);
-          process.exit(2);
+          ctx.fail(`${delayParsed.error}`, { code: 'INVALID_USAGE' });
         }
         const pageDelayMs = delayParsed.value;
 
         // Validate inputs
         if (!Number.isFinite(count) || count <= 0) {
-          console.error(`${ctx.p('err')}Invalid --count. Expected a positive integer.`);
-          process.exit(2);
+          ctx.fail(`Invalid --count. Expected a positive integer.`, { code: 'INVALID_USAGE' });
         }
         const pageSize = 20;
         const hardMaxPages = 10;
         const hardMaxTweets = pageSize * hardMaxPages;
         if (count > hardMaxTweets) {
-          console.error(
-            `${ctx.p('err')}Invalid --count. Max ${hardMaxTweets} tweets per run (safety cap: ${hardMaxPages} pages). Use --cursor to continue.`,
+          ctx.fail(
+            `Invalid --count. Max ${hardMaxTweets} tweets per run (safety cap: ${hardMaxPages} pages). Use --cursor to continue.`,
+            { code: 'INVALID_USAGE' },
           );
-          process.exit(2);
         }
         if (maxPages !== undefined && maxPages > hardMaxPages) {
-          console.error(`${ctx.p('err')}Invalid --max-pages. Expected a positive integer (max: ${hardMaxPages}).`);
-          process.exit(2);
+          ctx.fail(`Invalid --max-pages. Expected a positive integer (max: ${hardMaxPages}).`, {
+            code: 'INVALID_USAGE',
+          });
         }
 
         // Normalize handle (strip @ if present)
         const username = normalizeHandle(handle);
         if (!username) {
-          console.error(`${ctx.p('err')}Invalid handle: ${handle}`);
-          process.exit(2);
+          ctx.fail(`Invalid handle: ${handle}`, { code: 'INVALID_USAGE' });
         }
 
         const { cookies, warnings } = await ctx.resolveCredentialsFromOptions(opts);
@@ -94,8 +91,7 @@ export function registerUserTweetsCommand(program: Command, ctx: CliContext): vo
         }
 
         if (!cookies.authToken || !cookies.ct0) {
-          console.error(`${ctx.p('err')}Missing required credentials`);
-          process.exit(1);
+          ctx.fail(`Missing required credentials`);
         }
 
         const client = new TwitterClient({ cookies, timeoutMs, quoteDepth });
@@ -104,8 +100,7 @@ export function registerUserTweetsCommand(program: Command, ctx: CliContext): vo
         console.error(`${ctx.p('info')}Looking up @${username}...`);
         const userLookup = await client.getUserIdByUsername(username);
         if (!userLookup.success || !userLookup.userId) {
-          console.error(`${ctx.p('err')}${userLookup.error || `Could not find user @${username}`}`);
-          process.exit(1);
+          ctx.fail(`${userLookup.error || `Could not find user @${username}`}`);
         }
 
         const displayName = userLookup.name
@@ -135,8 +130,9 @@ export function registerUserTweetsCommand(program: Command, ctx: CliContext): vo
             console.error(`${ctx.p('info')}More tweets available. Use --cursor "${result.nextCursor}" to continue.`);
           }
         } else {
-          console.error(`${ctx.p('err')}Failed to fetch tweets: ${result.error}`);
-          process.exit(1);
+          ctx.failWithTweets(`Failed to fetch tweets: ${result.error}`, result, {
+            usePagination: wantsPaginationOutput,
+          });
         }
       },
     );

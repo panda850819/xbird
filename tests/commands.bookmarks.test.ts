@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { describe, expect, it, vi } from 'vitest';
 import type { CliContext } from '../src/cli/shared.js';
 import { registerBookmarksCommand } from '../src/commands/bookmarks.js';
+import { failLikeCli } from './helpers/cli-context.js';
 
 describe('bookmarks command', () => {
   it('requires --all or --cursor when --max-pages is provided', async () => {
@@ -13,6 +14,7 @@ describe('bookmarks command', () => {
         warnings: [],
       }),
       p: () => '',
+      fail: failLikeCli,
       printTweets: () => undefined,
     } as unknown as CliContext;
 
@@ -23,7 +25,7 @@ describe('bookmarks command', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     try {
-      await expect(program.parseAsync(['node', 'xbird', 'bookmarks', '--max-pages', '2'])).rejects.toThrow('exit 1');
+      await expect(program.parseAsync(['node', 'xbird', 'bookmarks', '--max-pages', '2'])).rejects.toThrow('exit 2');
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('--max-pages requires --all or --cursor'));
     } finally {
       exitSpy.mockRestore();

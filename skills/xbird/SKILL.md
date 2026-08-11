@@ -43,11 +43,15 @@ Never print, log, paste, or commit `auth_token`, `ct0`, `AUTH_TOKEN`, or `CT0`. 
 ## Safe operating rules
 
 - Read-only commands may run directly when they satisfy the user's request.
-- Treat `tweet`, `reply`, and `unbookmark` as external mutations. Show the exact intended action and obtain confirmation unless the user explicitly requested that mutation in the current message.
+- Treat `tweet`, `reply`, and `unbookmark` as external mutations. Show the exact intended action with `--dry-run` and obtain confirmation unless the user explicitly requested that mutation in the current message.
+- Respect `XBIRD_DISABLE_LIVE_WRITES=1`. Do not unset or bypass it; `--dry-run` remains available.
+- For mutations, pass `--expect-user @handle` whenever the intended account is known. Refuse an account mismatch.
 - Start pagination with a bounded count or `--max-pages`. Do not use `--all` without a clear need.
 - On `404` or stale query-ID errors, run `xbird query-ids --fresh` once and retry once.
 - On `429`, stop and report rate limiting. Do not create a rapid retry loop.
-- Do not claim success from process exit alone when a JSON result contains `success: false`.
+- JSON output uses `{ ok, data/error, meta }`. Check `ok`, then read payloads from `data`; inspect `meta.partial`, `meta.nextCursor`, and `meta.rateLimit`.
+- Treat exit codes `2` through `6` distinctly: invalid usage, authentication, unavailable capability, partial result, and rate limiting.
+- Do not claim success from process exit alone when a JSON result contains `ok: false`.
 
 ## CLI recipes
 
@@ -73,13 +77,16 @@ xbird likes -n 20 --json
 xbird lists --json
 xbird list-timeline <list-id-or-url> -n 20 --json
 
-# Mutations: require explicit intent
-xbird tweet "<text>"
-xbird reply <tweet-id-or-url> "<text>"
-xbird unbookmark <tweet-id-or-url>
+# Mutations: preview first and require explicit intent
+xbird --dry-run --expect-user @handle tweet "<text>"
+xbird --dry-run --expect-user @handle reply <tweet-id-or-url> "<text>"
+xbird --dry-run --expect-user @handle unbookmark <tweet-id-or-url>
+xbird --expect-user @handle tweet "<text>"
+xbird --expect-user @handle reply <tweet-id-or-url> "<text>"
+xbird --expect-user @handle unbookmark <tweet-id-or-url>
 ```
 
-When parsing CLI output in code, capture stdout as JSON and keep stderr for diagnostics:
+When parsing CLI output in code, capture the JSON envelope from stdout, keep stderr for diagnostics, and read the command payload from `.data`:
 
 ```bash
 xbird --plain search "from:example" -n 20 --json > results.json

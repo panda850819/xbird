@@ -76,8 +76,9 @@ xbird bookmarks -n 20 --json
 xbird likes -n 20
 xbird lists
 
-# Publish or reply
-xbird tweet "hello from xbird"
+# Preview, publish, or reply
+xbird --dry-run --expect-user @example tweet "hello from xbird"
+xbird --expect-user @example tweet "hello from xbird"
 xbird reply 1234567890123456789 "hello"
 xbird tweet "photo" --media image.png --alt "Description"
 
@@ -85,7 +86,34 @@ xbird tweet "photo" --media image.png --alt "Description"
 xbird query-ids --fresh
 ```
 
-Use bounded counts or `--max-pages` before reaching for `--all`. Run `xbird --help` or `xbird <command> --help` for the complete command reference.
+Use bounded counts or `--max-pages` before reaching for `--all`. For mutations, use `--expect-user @handle` to reject credentials for the wrong account. Run `xbird --help` or `xbird <command> --help` for the complete command reference.
+
+## JSON and exit codes
+
+`--json` returns one stable envelope on stdout. Diagnostics remain on stderr:
+
+```json
+{
+  "ok": true,
+  "data": [],
+  "meta": {
+    "partial": false,
+    "nextCursor": null
+  }
+}
+```
+
+Errors use `{ "ok": false, "error": { "code", "message" }, "meta" }`. Partial pagination failures may also include the data already fetched and exit with code `5`. Rate-limit errors include `meta.rateLimit.retryAfterSeconds` when X provides `Retry-After`.
+
+| Exit | Meaning |
+| ---: | --- |
+| `0` | Success |
+| `1` | Runtime failure |
+| `2` | Invalid usage |
+| `3` | Authentication required or account mismatch |
+| `4` | Capability unavailable |
+| `5` | Partial result |
+| `6` | Rate limited |
 
 ## Authentication
 
@@ -124,6 +152,7 @@ Environment variables include:
 - `XBIRD_TIMEOUT_MS`
 - `XBIRD_COOKIE_TIMEOUT_MS`
 - `XBIRD_QUOTE_DEPTH`
+- `XBIRD_DISABLE_LIVE_WRITES=1` to block `tweet`, `reply`, `unbookmark`, and media uploads while still allowing `--dry-run`
 - `XBIRD_QUERY_IDS_CACHE`
 - `XBIRD_FEATURES_CACHE`
 

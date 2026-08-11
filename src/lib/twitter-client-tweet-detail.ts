@@ -193,7 +193,7 @@ export function withTweetDetails<TBase extends AbstractConstructor<TwitterClient
         const parseResponse = async (response: Response) => {
           if (!response.ok) {
             const text = await response.text();
-            return { success: false as const, error: `HTTP ${response.status}: ${text.slice(0, 200)}` };
+            return { success: false as const, error: this.formatHttpError(response, text) };
           }
 
           const data = (await response.json()) as {

@@ -19,7 +19,7 @@ function printNewsItems(
   opts: { json?: boolean; emptyMessage?: string; tweetLimit?: number } = {},
 ): void {
   if (opts.json) {
-    console.log(JSON.stringify(items, null, 2));
+    ctx.printJson(items);
     return;
   }
 
@@ -109,18 +109,15 @@ export function registerNewsCommand(program: Command, ctx: CliContext): void {
         }
 
         if (Number.isNaN(count) || count < 1) {
-          console.error(`${ctx.p('err')}--count must be a positive number`);
-          process.exit(1);
+          ctx.fail(`--count must be a positive number`);
         }
 
         if (Number.isNaN(tweetsPerItem) || tweetsPerItem < 1) {
-          console.error(`${ctx.p('err')}--tweets-per-item must be a positive number`);
-          process.exit(1);
+          ctx.fail(`--tweets-per-item must be a positive number`);
         }
 
         if (!cookies.authToken || !cookies.ct0) {
-          console.error(`${ctx.p('err')}Missing required credentials`);
-          process.exit(1);
+          ctx.fail(`Missing required credentials`);
         }
 
         // Determine which tabs to fetch from
@@ -164,8 +161,7 @@ export function registerNewsCommand(program: Command, ctx: CliContext): void {
             tweetLimit: withTweets ? tweetsPerItem : undefined,
           });
         } else {
-          console.error(`${ctx.p('err')}Failed to fetch news: ${result.error}`);
-          process.exit(1);
+          ctx.fail(`Failed to fetch news: ${result.error}`);
         }
       },
     );

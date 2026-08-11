@@ -71,6 +71,12 @@ export abstract class TwitterClientBase {
     return Array.from(new Set([primary, 'M1jEez78PEfVfbQLvlWMvQ', '5h0kNbk3ii97rmfY6CdgAA', 'Tp1sewRU1AsZpBWhqCZicQ']));
   }
 
+  protected formatHttpError(response: Response, body: string): string {
+    const retryAfter = response.headers?.get?.('retry-after');
+    const retryAfterSuffix = retryAfter ? `; Retry-After: ${retryAfter}` : '';
+    return `HTTP ${response.status}${retryAfterSuffix}: ${body.slice(0, 200)}`;
+  }
+
   protected async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
     if (!this.timeoutMs || this.timeoutMs <= 0) {
       return fetch(url, init);

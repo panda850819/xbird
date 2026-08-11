@@ -25,8 +25,7 @@ export function registerReadCommands(program: Command, ctx: CliContext): void {
       }
 
       if (!cookies.authToken || !cookies.ct0) {
-        console.error(`${ctx.p('err')}Missing required credentials`);
-        process.exit(1);
+        ctx.fail(`Missing required credentials`);
       }
 
       const client = new TwitterClient({ cookies, timeoutMs, quoteDepth });
@@ -35,14 +34,13 @@ export function registerReadCommands(program: Command, ctx: CliContext): void {
 
       if (result.success && result.tweet) {
         if (cmdOpts.json || cmdOpts.jsonFull) {
-          console.log(JSON.stringify(result.tweet, null, 2));
+          ctx.printJson(result.tweet);
         } else {
           ctx.printTweets([result.tweet], { showSeparator: false });
           console.log(formatStatsLine(result.tweet, ctx.getOutput()));
         }
       } else {
-        console.error(`${ctx.p('err')}Failed to read tweet: ${result.error}`);
-        process.exit(1);
+        ctx.fail(`Failed to read tweet: ${result.error}`);
       }
     });
 
@@ -75,8 +73,7 @@ export function registerReadCommands(program: Command, ctx: CliContext): void {
 
         const pagination = parsePaginationFlags(cmdOpts, { maxPagesImpliesPagination: true, includeDelay: true });
         if (!pagination.ok) {
-          console.error(`${ctx.p('err')}${pagination.error}`);
-          process.exit(1);
+          ctx.fail(`${pagination.error}`);
         }
 
         const { cookies, warnings } = await ctx.resolveCredentialsFromOptions(opts);
@@ -86,8 +83,7 @@ export function registerReadCommands(program: Command, ctx: CliContext): void {
         }
 
         if (!cookies.authToken || !cookies.ct0) {
-          console.error(`${ctx.p('err')}Missing required credentials`);
-          process.exit(1);
+          ctx.fail(`Missing required credentials`);
         }
 
         const client = new TwitterClient({ cookies, timeoutMs, quoteDepth });
@@ -103,22 +99,19 @@ export function registerReadCommands(program: Command, ctx: CliContext): void {
           : await client.getReplies(tweetId, { includeRaw });
 
         const isJson = Boolean(cmdOpts.json || cmdOpts.jsonFull);
-        if (result.tweets) {
-          ctx.printTweetsResult(result, {
-            json: isJson,
-            usePagination: pagination.usePagination,
-            emptyMessage: 'No replies found.',
-          });
-
-          // Show pagination hint if there's more
-          if (result.nextCursor && !isJson) {
-            console.error(`${ctx.p('info')}More replies available. Use --cursor "${result.nextCursor}" to continue.`);
-          }
-        }
-
         if (!result.success) {
-          console.error(`${ctx.p('err')}Failed to fetch replies: ${result.error}`);
-          process.exit(1);
+          ctx.failWithTweets(`Failed to fetch replies: ${result.error}`, result, {
+            usePagination: pagination.usePagination,
+          });
+        }
+        ctx.printTweetsResult(result, {
+          json: isJson,
+          usePagination: pagination.usePagination,
+          emptyMessage: 'No replies found.',
+        });
+
+        if (result.nextCursor && !isJson) {
+          console.error(`${ctx.p('info')}More replies available. Use --cursor "${result.nextCursor}" to continue.`);
         }
       },
     );
@@ -152,8 +145,7 @@ export function registerReadCommands(program: Command, ctx: CliContext): void {
 
         const pagination = parsePaginationFlags(cmdOpts, { maxPagesImpliesPagination: true, includeDelay: true });
         if (!pagination.ok) {
-          console.error(`${ctx.p('err')}${pagination.error}`);
-          process.exit(1);
+          ctx.fail(`${pagination.error}`);
         }
 
         const { cookies, warnings } = await ctx.resolveCredentialsFromOptions(opts);
@@ -163,8 +155,7 @@ export function registerReadCommands(program: Command, ctx: CliContext): void {
         }
 
         if (!cookies.authToken || !cookies.ct0) {
-          console.error(`${ctx.p('err')}Missing required credentials`);
-          process.exit(1);
+          ctx.fail(`Missing required credentials`);
         }
 
         const client = new TwitterClient({ cookies, timeoutMs, quoteDepth });
@@ -180,24 +171,21 @@ export function registerReadCommands(program: Command, ctx: CliContext): void {
           : await client.getThread(tweetId, { includeRaw });
 
         const isJson = Boolean(cmdOpts.json || cmdOpts.jsonFull);
-        if (result.tweets) {
-          ctx.printTweetsResult(result, {
-            json: isJson,
-            usePagination: pagination.usePagination,
-            emptyMessage: 'No thread tweets found.',
-          });
-
-          // Show pagination hint if there's more
-          if (result.nextCursor && !isJson) {
-            console.error(
-              `${ctx.p('info')}More thread tweets available. Use --cursor "${result.nextCursor}" to continue.`,
-            );
-          }
-        }
-
         if (!result.success) {
-          console.error(`${ctx.p('err')}Failed to fetch thread: ${result.error}`);
-          process.exit(1);
+          ctx.failWithTweets(`Failed to fetch thread: ${result.error}`, result, {
+            usePagination: pagination.usePagination,
+          });
+        }
+        ctx.printTweetsResult(result, {
+          json: isJson,
+          usePagination: pagination.usePagination,
+          emptyMessage: 'No thread tweets found.',
+        });
+
+        if (result.nextCursor && !isJson) {
+          console.error(
+            `${ctx.p('info')}More thread tweets available. Use --cursor "${result.nextCursor}" to continue.`,
+          );
         }
       },
     );

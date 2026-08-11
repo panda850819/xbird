@@ -78,7 +78,7 @@ export function withUserLookup<TBase extends AbstractConstructor<TwitterClientBa
               lastError = `HTTP ${response.status}`;
               continue;
             }
-            lastError = `HTTP ${response.status}: ${text.slice(0, 200)}`;
+            lastError = this.formatHttpError(response, text);
             continue;
           }
 
@@ -175,7 +175,7 @@ export function withUserLookup<TBase extends AbstractConstructor<TwitterClientBa
             if (response.status === 404) {
               return { success: false, error: `User @${cleanUsername} not found` };
             }
-            lastError = `HTTP ${response.status}: ${text.slice(0, 200)}`;
+            lastError = this.formatHttpError(response, text);
             continue;
           }
 

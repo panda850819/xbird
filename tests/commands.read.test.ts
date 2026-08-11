@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { CliContext } from '../src/cli/shared.js';
 import { registerReadCommands } from '../src/commands/read.js';
 import { TwitterClient } from '../src/lib/twitter-client.js';
+import { failLikeCli } from './helpers/cli-context.js';
 
 describe('replies command', () => {
   const createMockContext = () =>
@@ -15,6 +16,7 @@ describe('replies command', () => {
         warnings: [],
       }),
       p: () => '',
+      fail: failLikeCli,
       printTweets: () => undefined,
       printTweetsResult: () => undefined,
     }) as unknown as CliContext;
@@ -50,7 +52,7 @@ describe('replies command', () => {
     try {
       await expect(
         program.parseAsync(['node', 'xbird', 'replies', '123', '--all', '--max-pages', '-1']),
-      ).rejects.toThrow('exit 1');
+      ).rejects.toThrow('exit 2');
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid --max-pages'));
     } finally {
       exitSpy.mockRestore();
@@ -69,7 +71,7 @@ describe('replies command', () => {
 
     try {
       await expect(program.parseAsync(['node', 'xbird', 'replies', '123', '--all', '--delay', '-100'])).rejects.toThrow(
-        'exit 1',
+        'exit 2',
       );
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid --delay'));
     } finally {
@@ -90,6 +92,7 @@ describe('thread command', () => {
         warnings: [],
       }),
       p: () => '',
+      fail: failLikeCli,
       printTweets: () => undefined,
       printTweetsResult: () => undefined,
     }) as unknown as CliContext;
@@ -124,7 +127,7 @@ describe('thread command', () => {
 
     try {
       await expect(program.parseAsync(['node', 'xbird', 'thread', '123', '--all', '--max-pages', '0'])).rejects.toThrow(
-        'exit 1',
+        'exit 2',
       );
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid --max-pages'));
     } finally {
@@ -144,7 +147,7 @@ describe('thread command', () => {
 
     try {
       await expect(program.parseAsync(['node', 'xbird', 'thread', '123', '--all', '--delay', 'abc'])).rejects.toThrow(
-        'exit 1',
+        'exit 2',
       );
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid --delay'));
     } finally {
