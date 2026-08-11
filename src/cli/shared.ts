@@ -4,6 +4,13 @@ import { join } from 'node:path';
 import type { Command } from 'commander';
 import JSON5 from 'json5';
 import kleur from 'kleur';
+import {
+  type CliErrorCode,
+  type CliResultMeta,
+  createErrorEnvelope,
+  createSuccessEnvelope,
+  exitCodeForError,
+} from '../lib/cli-contract.js';
 import { type CookieSource, resolveCredentials } from '../lib/cookies.js';
 import { extractTweetId } from '../lib/extract-tweet-id.js';
 import {
@@ -30,6 +37,14 @@ export type MediaSpec = { path: string; alt?: string; mime: string; buffer: Buff
 export type CliContext = {
   isTty: boolean;
   getOutput: () => OutputConfig;
+  isJson: () => boolean;
+  printJson: <T>(data: T, meta?: CliResultMeta) => void;
+  fail: <T = undefined>(message: string, options?: { code?: CliErrorCode; data?: T; meta?: CliResultMeta }) => never;
+  failWithTweets: (
+    message: string,
+    result: { tweets?: TweetData[]; nextCursor?: string },
+    options: { usePagination: boolean },
+  ) => never;
   colors: {
     banner: (t: string) => string;
     subtitle: (t: string) => string;
@@ -182,6 +197,7 @@ type CredentialsOptions = {
 export function createCliContext(normalizedArgs: string[], env: NodeJS.ProcessEnv = process.env): CliContext {
   const isTty = process.stdout.isTTY;
   let output: OutputConfig = resolveOutputConfigFromArgv(normalizedArgs, env, isTty);
+  let jsonOutput = normalizedArgs.includes('--json') || normalizedArgs.includes('--json-full');
   kleur.enabled = output.color;
 
   const wrap =
@@ -259,8 +275,15 @@ export function createCliContext(normalizedArgs: string[], env: NodeJS.ProcessEn
   });
 
   function applyOutputFromCommand(command: Command): void {
-    const opts = command.optsWithGlobals() as { plain?: boolean; emoji?: boolean; color?: boolean };
+    const opts = command.optsWithGlobals() as {
+      plain?: boolean;
+      emoji?: boolean;
+      color?: boolean;
+      json?: boolean;
+      jsonFull?: boolean;
+    };
     output = resolveOutputConfigFromCommander(opts, env, isTty);
+    jsonOutput = Boolean(opts.json || opts.jsonFull);
     kleur.enabled = output.color;
   }
 
@@ -322,7 +345,7 @@ export function createCliContext(normalizedArgs: string[], env: NodeJS.ProcessEn
     opts: { json?: boolean; emptyMessage?: string; showSeparator?: boolean } = {},
   ) {
     if (opts.json) {
-      console.log(JSON.stringify(tweets, null, 2));
+      printJson(tweets);
       return;
     }
     if (tweets.length === 0) {
@@ -406,15 +429,53 @@ export function createCliContext(normalizedArgs: string[], env: NodeJS.ProcessEn
   ) {
     const tweets = result.tweets ?? [];
     if (opts.json && opts.usePagination) {
-      console.log(JSON.stringify({ tweets, nextCursor: result.nextCursor ?? null }, null, 2));
+      printJson({ tweets, nextCursor: result.nextCursor ?? null }, { nextCursor: result.nextCursor ?? null });
       return;
     }
     printTweets(tweets, { json: opts.json, emptyMessage: opts.emptyMessage });
   }
 
+  function printJson<T>(data: T, meta: CliResultMeta = {}): void {
+    console.log(JSON.stringify(createSuccessEnvelope(data, meta), null, 2));
+  }
+
+  function fail<T = undefined>(
+    message: string,
+    options: { code?: CliErrorCode; data?: T; meta?: CliResultMeta } = {},
+  ): never {
+    if (jsonOutput) {
+      console.log(JSON.stringify(createErrorEnvelope(message, options), null, 2));
+    } else {
+      console.error(`${p('err')}${message}`);
+    }
+    process.exit(exitCodeForError(message, options.code));
+  }
+
+  function failWithTweets(
+    message: string,
+    result: { tweets?: TweetData[]; nextCursor?: string },
+    options: { usePagination: boolean },
+  ): never {
+    const tweets = result.tweets ?? [];
+    const hasPartialData = tweets.length > 0;
+    const data = options.usePagination ? { tweets, nextCursor: result.nextCursor ?? null } : tweets;
+    fail(message, {
+      code: hasPartialData ? 'PARTIAL_RESULT' : undefined,
+      data: hasPartialData ? data : undefined,
+      meta: {
+        partial: hasPartialData,
+        ...(result.nextCursor ? { nextCursor: result.nextCursor } : {}),
+      },
+    });
+  }
+
   return {
     isTty,
     getOutput: () => output,
+    isJson: () => jsonOutput,
+    printJson,
+    fail,
+    failWithTweets,
     colors,
     p,
     l,

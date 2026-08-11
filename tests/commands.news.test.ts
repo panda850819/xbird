@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CliContext } from '../src/cli/shared.js';
 import { registerNewsCommand } from '../src/commands/news.js';
 import { TwitterClient } from '../src/lib/twitter-client.js';
+import { failLikeCli } from './helpers/cli-context.js';
 
 describe('news command', () => {
   let program: Command;
@@ -22,6 +23,7 @@ describe('news command', () => {
         warnings: [],
       }),
       p: (type: string) => `[${type}] `,
+      fail: failLikeCli,
       colors: {
         accent: (text: string) => text,
         command: (text: string) => text,
@@ -40,7 +42,7 @@ describe('news command', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     try {
-      await expect(program.parseAsync(['node', 'xbird', 'news', '--count', '0'])).rejects.toThrow('exit 1');
+      await expect(program.parseAsync(['node', 'xbird', 'news', '--count', '0'])).rejects.toThrow('exit 2');
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('--count must be a positive number'));
     } finally {
       exitSpy.mockRestore();
@@ -56,7 +58,7 @@ describe('news command', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     try {
-      await expect(program.parseAsync(['node', 'xbird', 'news', '--count', '-5'])).rejects.toThrow('exit 1');
+      await expect(program.parseAsync(['node', 'xbird', 'news', '--count', '-5'])).rejects.toThrow('exit 2');
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('--count must be a positive number'));
     } finally {
       exitSpy.mockRestore();
@@ -72,7 +74,7 @@ describe('news command', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     try {
-      await expect(program.parseAsync(['node', 'xbird', 'news', '--count', 'abc'])).rejects.toThrow('exit 1');
+      await expect(program.parseAsync(['node', 'xbird', 'news', '--count', 'abc'])).rejects.toThrow('exit 2');
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('--count must be a positive number'));
     } finally {
       exitSpy.mockRestore();
@@ -88,7 +90,7 @@ describe('news command', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     try {
-      await expect(program.parseAsync(['node', 'xbird', 'news', '--tweets-per-item', '0'])).rejects.toThrow('exit 1');
+      await expect(program.parseAsync(['node', 'xbird', 'news', '--tweets-per-item', '0'])).rejects.toThrow('exit 2');
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('--tweets-per-item must be a positive number'));
     } finally {
       exitSpy.mockRestore();
@@ -104,7 +106,7 @@ describe('news command', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     try {
-      await expect(program.parseAsync(['node', 'xbird', 'news', '--tweets-per-item', '-3'])).rejects.toThrow('exit 1');
+      await expect(program.parseAsync(['node', 'xbird', 'news', '--tweets-per-item', '-3'])).rejects.toThrow('exit 2');
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('--tweets-per-item must be a positive number'));
     } finally {
       exitSpy.mockRestore();
@@ -120,7 +122,7 @@ describe('news command', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     try {
-      await expect(program.parseAsync(['node', 'xbird', 'news', '--tweets-per-item', 'xyz'])).rejects.toThrow('exit 1');
+      await expect(program.parseAsync(['node', 'xbird', 'news', '--tweets-per-item', 'xyz'])).rejects.toThrow('exit 2');
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('--tweets-per-item must be a positive number'));
     } finally {
       exitSpy.mockRestore();
@@ -145,7 +147,7 @@ describe('news command', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     try {
-      await expect(program.parseAsync(['node', 'xbird', 'news'])).rejects.toThrow('exit 1');
+      await expect(program.parseAsync(['node', 'xbird', 'news'])).rejects.toThrow('exit 3');
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Missing required credentials'));
     } finally {
       exitSpy.mockRestore();

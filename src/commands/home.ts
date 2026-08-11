@@ -22,13 +22,11 @@ export function registerHomeCommand(program: Command, ctx: CliContext): void {
       }
 
       if (!cookies.authToken || !cookies.ct0) {
-        console.error(`${ctx.p('err')}Missing required credentials`);
-        process.exit(1);
+        ctx.fail(`Missing required credentials`);
       }
 
       if (!Number.isFinite(count) || count <= 0) {
-        console.error(`${ctx.p('err')}Invalid --count. Expected a positive integer.`);
-        process.exit(1);
+        ctx.fail(`Invalid --count. Expected a positive integer.`);
       }
 
       const client = new TwitterClient({ cookies, timeoutMs });
@@ -44,8 +42,7 @@ export function registerHomeCommand(program: Command, ctx: CliContext): void {
         const isJson = Boolean(cmdOpts.json || cmdOpts.jsonFull);
         ctx.printTweets(result.tweets, { json: isJson, emptyMessage });
       } else {
-        console.error(`${ctx.p('err')}Failed to fetch home timeline: ${result.error}`);
-        process.exit(1);
+        ctx.failWithTweets(`Failed to fetch home timeline: ${result.error}`, result, { usePagination: false });
       }
     });
 }

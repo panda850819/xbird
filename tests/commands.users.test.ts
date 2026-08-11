@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CliContext } from '../src/cli/shared.js';
 import { registerUserCommands } from '../src/commands/users.js';
 import { TwitterClient } from '../src/lib/twitter-client.js';
+import { failLikeCli } from './helpers/cli-context.js';
 
 const baseCtx = {
   resolveTimeoutFromOptions: () => undefined,
@@ -11,6 +12,8 @@ const baseCtx = {
     warnings: [],
   }),
   p: () => '',
+  fail: failLikeCli,
+  printJson: (data: unknown) => console.log(JSON.stringify(data)),
   printTweets: () => undefined,
 } as unknown as CliContext;
 
@@ -29,7 +32,7 @@ describe('users commands', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     try {
-      await expect(program.parseAsync(['node', 'xbird', 'following', '--max-pages', '2'])).rejects.toThrow('exit 1');
+      await expect(program.parseAsync(['node', 'xbird', 'following', '--max-pages', '2'])).rejects.toThrow('exit 2');
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('--max-pages requires --all.'));
     } finally {
       exitSpy.mockRestore();
@@ -48,7 +51,7 @@ describe('users commands', () => {
     try {
       await expect(
         program.parseAsync(['node', 'xbird', 'following', '--cursor', 'prev', '--max-pages', '2']),
-      ).rejects.toThrow('exit 1');
+      ).rejects.toThrow('exit 2');
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('--max-pages requires --all.'));
     } finally {
       exitSpy.mockRestore();

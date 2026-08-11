@@ -134,7 +134,7 @@ export function withTimelines<TBase extends AbstractConstructor<TwitterClientBas
 
             if (!response.ok) {
               const text = await response.text();
-              return { success: false as const, error: `HTTP ${response.status}: ${text.slice(0, 200)}`, had404 };
+              return { success: false as const, error: this.formatHttpError(response, text), had404 };
             }
 
             const data = (await response.json()) as {
@@ -314,7 +314,7 @@ export function withTimelines<TBase extends AbstractConstructor<TwitterClientBas
                 status: response.status,
                 body: text.slice(0, 200),
               });
-              return { success: false as const, error: `HTTP ${response.status}: ${text.slice(0, 200)}`, had404 };
+              return { success: false as const, error: this.formatHttpError(response, text), had404 };
             }
 
             const data = (await response.json()) as {
@@ -481,7 +481,7 @@ export function withTimelines<TBase extends AbstractConstructor<TwitterClientBas
                   status: response.status,
                   body: text.slice(0, 200),
                 });
-                return { success: false as const, error: `HTTP ${response.status}: ${text.slice(0, 200)}`, had404 };
+                return { success: false as const, error: this.formatHttpError(response, text), had404 };
               }
 
               const data = (await response.json()) as {

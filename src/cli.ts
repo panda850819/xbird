@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env -S bun --no-env-file
 
 /**
  * xbird - unofficial CLI for using X from the terminal
@@ -10,6 +10,7 @@
  *   xbird read <tweet-id-or-url>
  */
 
+import { CommanderError } from 'commander';
 import { createProgram, KNOWN_COMMANDS } from './cli/program.js';
 import { createCliContext } from './cli/shared.js';
 import { resolveCliInvocation } from './lib/cli-args.js';
@@ -28,8 +29,21 @@ if (showHelp) {
   process.exit(0);
 }
 
-if (argv) {
-  program.parse(argv);
-} else {
-  program.parse(['bun', 'xbird', ...normalizedArgs]);
+try {
+  if (argv) {
+    await program.parseAsync(argv);
+  } else {
+    await program.parseAsync(['bun', 'xbird', ...normalizedArgs]);
+  }
+} catch (error) {
+  if (error instanceof CommanderError) {
+    if (error.exitCode === 0) {
+      process.exit(0);
+    }
+    if (ctx.isJson()) {
+      ctx.fail(error.message, { code: 'INVALID_USAGE' });
+    }
+    process.exit(2);
+  }
+  throw error;
 }

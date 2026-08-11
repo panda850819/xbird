@@ -169,7 +169,7 @@ export function withNews<TBase extends AbstractConstructor<TwitterClientBase>>(
 
       if (!response.ok) {
         const text = await response.text();
-        throw new Error(`HTTP ${response.status}: ${text.slice(0, 200)}`);
+        throw new Error(this.formatHttpError(response, text));
       }
 
       const data = (await response.json()) as {

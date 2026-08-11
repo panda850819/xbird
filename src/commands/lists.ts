@@ -50,8 +50,7 @@ export function registerListsCommand(program: Command, ctx: CliContext): void {
       }
 
       if (!cookies.authToken || !cookies.ct0) {
-        console.error(`${ctx.p('err')}Missing required credentials`);
-        process.exit(1);
+        ctx.fail(`Missing required credentials`);
       }
 
       const client = new TwitterClient({ cookies, timeoutMs });
@@ -60,7 +59,7 @@ export function registerListsCommand(program: Command, ctx: CliContext): void {
 
       if (result.success && result.lists) {
         if (cmdOpts.json) {
-          console.log(JSON.stringify(result.lists, null, 2));
+          ctx.printJson(result.lists);
         } else {
           const emptyMessage = cmdOpts.memberOf ? 'You are not a member of any lists.' : 'You do not own any lists.';
           if (result.lists.length === 0) {
@@ -70,8 +69,7 @@ export function registerListsCommand(program: Command, ctx: CliContext): void {
           }
         }
       } else {
-        console.error(`${ctx.p('err')}Failed to fetch lists: ${result.error}`);
-        process.exit(1);
+        ctx.fail(`Failed to fetch lists: ${result.error}`);
       }
     });
 
@@ -103,20 +101,19 @@ export function registerListsCommand(program: Command, ctx: CliContext): void {
 
         const pagination = parsePaginationFlags(cmdOpts, { maxPagesImpliesPagination: true });
         if (!pagination.ok) {
-          console.error(`${ctx.p('err')}${pagination.error}`);
-          process.exit(1);
+          ctx.fail(`${pagination.error}`);
         }
 
         const listId = extractListId(listIdOrUrl);
         if (!listId) {
-          console.error(`${ctx.p('err')}Invalid list ID or URL. Expected numeric ID or https://x.com/i/lists/<id>.`);
-          process.exit(2);
+          ctx.fail(`Invalid list ID or URL. Expected numeric ID or https://x.com/i/lists/<id>.`, {
+            code: 'INVALID_USAGE',
+          });
         }
 
         const usePagination = pagination.usePagination;
         if (!usePagination && (!Number.isFinite(count) || count <= 0)) {
-          console.error(`${ctx.p('err')}Invalid --count. Expected a positive integer.`);
-          process.exit(1);
+          ctx.fail(`Invalid --count. Expected a positive integer.`);
         }
 
         const { cookies, warnings } = await ctx.resolveCredentialsFromOptions(opts);
@@ -126,8 +123,7 @@ export function registerListsCommand(program: Command, ctx: CliContext): void {
         }
 
         if (!cookies.authToken || !cookies.ct0) {
-          console.error(`${ctx.p('err')}Missing required credentials`);
-          process.exit(1);
+          ctx.fail(`Missing required credentials`);
         }
 
         const client = new TwitterClient({ cookies, timeoutMs, quoteDepth });
@@ -147,8 +143,9 @@ export function registerListsCommand(program: Command, ctx: CliContext): void {
             emptyMessage: 'No tweets found in this list.',
           });
         } else {
-          console.error(`${ctx.p('err')}Failed to fetch list timeline: ${result.error}`);
-          process.exit(1);
+          ctx.failWithTweets(`Failed to fetch list timeline: ${result.error}`, result, {
+            usePagination: pagination.usePagination,
+          });
         }
       },
     );

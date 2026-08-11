@@ -62,7 +62,11 @@ function runXbird(args: string[], options: { timeoutMs?: number } = {}): Promise
 
 function parseJson<T>(stdout: string): T {
   try {
-    return JSON.parse(stdout) as T;
+    const parsed = JSON.parse(stdout) as T | { ok?: boolean; data?: T };
+    if (parsed && typeof parsed === 'object' && 'ok' in parsed && parsed.ok === true) {
+      return parsed.data as T;
+    }
+    return parsed as T;
   } catch (error) {
     throw new Error(`Invalid JSON output: ${error instanceof Error ? error.message : String(error)}\n${stdout}`);
   }

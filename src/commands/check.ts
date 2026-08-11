@@ -5,21 +5,47 @@ export function registerCheckCommand(program: Command, ctx: CliContext): void {
   program
     .command('check')
     .description('Check credential availability')
+    .option('--json', 'Output as a stable JSON envelope')
     .action(async () => {
       const opts = program.opts();
       const { cookies, warnings } = await ctx.resolveCredentialsFromOptions(opts);
+
+      if (ctx.isJson()) {
+        const ready = Boolean(cookies.authToken && cookies.ct0);
+        if (ready) {
+          ctx.printJson({
+            ready,
+            credentials: { authToken: 'present', ct0: 'present' },
+            source: cookies.source ?? null,
+            warnings,
+          });
+          return;
+        }
+        ctx.fail('Missing required credentials', {
+          code: 'AUTHENTICATION_REQUIRED',
+          data: {
+            ready,
+            credentials: {
+              authToken: cookies.authToken ? 'present' : 'not_found',
+              ct0: cookies.ct0 ? 'present' : 'not_found',
+            },
+            source: cookies.source ?? null,
+            warnings,
+          },
+        });
+      }
 
       console.log(`${ctx.p('info')}Credential check`);
       console.log('─'.repeat(40));
 
       if (cookies.authToken) {
-        console.log(`${ctx.p('ok')}auth_token: ${cookies.authToken.slice(0, 10)}...`);
+        console.log(`${ctx.p('ok')}auth_token: present`);
       } else {
         console.log(`${ctx.p('err')}auth_token: not found`);
       }
 
       if (cookies.ct0) {
-        console.log(`${ctx.p('ok')}ct0: ${cookies.ct0.slice(0, 10)}...`);
+        console.log(`${ctx.p('ok')}ct0: present`);
       } else {
         console.log(`${ctx.p('err')}ct0: not found`);
       }
@@ -42,7 +68,7 @@ export function registerCheckCommand(program: Command, ctx: CliContext): void {
         console.log('   1. Login to x.com in Safari/Chrome/Firefox');
         console.log('   2. Set AUTH_TOKEN and CT0 environment variables');
         console.log('   3. Use --auth-token and --ct0 flags');
-        process.exit(1);
+        process.exit(3);
       }
     });
 }

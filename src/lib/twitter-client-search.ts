@@ -121,7 +121,7 @@ export function withSearch<TBase extends AbstractConstructor<TwitterClientBase>>
                 (response.status === 400 || response.status === 422) && isQueryIdMismatch(text);
               return {
                 success: false as const,
-                error: `HTTP ${response.status}: ${text.slice(0, 200)}`,
+                error: this.formatHttpError(response, text),
                 had404: had404 || shouldRefreshQueryIds,
               };
             }

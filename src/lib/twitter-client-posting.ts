@@ -101,7 +101,7 @@ export function withPosting<TBase extends AbstractConstructor<TwitterClientBase>
 
             if (!retry.ok) {
               const text = await retry.text();
-              return { success: false, error: `HTTP ${retry.status}: ${text.slice(0, 200)}` };
+              return { success: false, error: this.formatHttpError(retry, text) };
             }
 
             const data = (await retry.json()) as CreateTweetResponse;
@@ -127,7 +127,7 @@ export function withPosting<TBase extends AbstractConstructor<TwitterClientBase>
           const text = await response.text();
           return {
             success: false,
-            error: `HTTP ${response.status}: ${text.slice(0, 200)}`,
+            error: this.formatHttpError(response, text),
           };
         }
 
@@ -234,7 +234,7 @@ export function withPosting<TBase extends AbstractConstructor<TwitterClientBase>
 
         if (!response.ok) {
           const text = await response.text();
-          return { success: false, error: `HTTP ${response.status}: ${text.slice(0, 200)}` };
+          return { success: false, error: this.formatHttpError(response, text) };
         }
 
         const data = (await response.json()) as {

@@ -50,7 +50,7 @@ export function withMedia<TBase extends AbstractConstructor<TwitterClientBase>>(
 
         if (!initResp.ok) {
           const text = await initResp.text();
-          return { success: false, error: `HTTP ${initResp.status}: ${text.slice(0, 200)}` };
+          return { success: false, error: this.formatHttpError(initResp, text) };
         }
 
         const initBody = (await initResp.json()) as { media_id_string?: string; media_id?: string | number };
@@ -82,7 +82,7 @@ export function withMedia<TBase extends AbstractConstructor<TwitterClientBase>>(
 
           if (!appendResp.ok) {
             const text = await appendResp.text();
-            return { success: false, error: `HTTP ${appendResp.status}: ${text.slice(0, 200)}` };
+            return { success: false, error: this.formatHttpError(appendResp, text) };
           }
           segmentIndex += 1;
         }
@@ -96,7 +96,7 @@ export function withMedia<TBase extends AbstractConstructor<TwitterClientBase>>(
 
         if (!finalizeResp.ok) {
           const text = await finalizeResp.text();
-          return { success: false, error: `HTTP ${finalizeResp.status}: ${text.slice(0, 200)}` };
+          return { success: false, error: this.formatHttpError(finalizeResp, text) };
         }
 
         const finalizeBody = (await finalizeResp.json()) as {
@@ -129,7 +129,7 @@ export function withMedia<TBase extends AbstractConstructor<TwitterClientBase>>(
 
             if (!statusResp.ok) {
               const text = await statusResp.text();
-              return { success: false, error: `HTTP ${statusResp.status}: ${text.slice(0, 200)}` };
+              return { success: false, error: this.formatHttpError(statusResp, text) };
             }
 
             const statusBody = (await statusResp.json()) as {
@@ -160,7 +160,7 @@ export function withMedia<TBase extends AbstractConstructor<TwitterClientBase>>(
           });
           if (!metaResp.ok) {
             const text = await metaResp.text();
-            return { success: false, error: `HTTP ${metaResp.status}: ${text.slice(0, 200)}` };
+            return { success: false, error: this.formatHttpError(metaResp, text) };
           }
         }
 

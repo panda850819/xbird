@@ -51,18 +51,12 @@ export function registerQueryIdsCommand(program: Command, ctx: CliContext): void
       const info = await runtimeQueryIds.getSnapshotInfo();
       if (!info) {
         if (cmdOpts.json) {
-          console.log(
-            JSON.stringify(
-              {
-                cached: false,
-                cachePath: runtimeQueryIds.cachePath,
-                featuresPath: featureSnapshot.cachePath,
-                features: featureSnapshot.overrides,
-              },
-              null,
-              2,
-            ),
-          );
+          ctx.printJson({
+            cached: false,
+            cachePath: runtimeQueryIds.cachePath,
+            featuresPath: featureSnapshot.cachePath,
+            features: featureSnapshot.overrides,
+          });
           return;
         }
         console.log(`${ctx.p('warn')}No cached query IDs yet.`);
@@ -72,23 +66,17 @@ export function registerQueryIdsCommand(program: Command, ctx: CliContext): void
       }
 
       if (cmdOpts.json) {
-        console.log(
-          JSON.stringify(
-            {
-              cached: true,
-              cachePath: info.cachePath,
-              fetchedAt: info.snapshot.fetchedAt,
-              isFresh: info.isFresh,
-              ageMs: info.ageMs,
-              ids: info.snapshot.ids,
-              discovery: info.snapshot.discovery,
-              featuresPath: featureSnapshot.cachePath,
-              features: featureSnapshot.overrides,
-            },
-            null,
-            2,
-          ),
-        );
+        ctx.printJson({
+          cached: true,
+          cachePath: info.cachePath,
+          fetchedAt: info.snapshot.fetchedAt,
+          isFresh: info.isFresh,
+          ageMs: info.ageMs,
+          ids: info.snapshot.ids,
+          discovery: info.snapshot.discovery,
+          featuresPath: featureSnapshot.cachePath,
+          features: featureSnapshot.overrides,
+        });
         return;
       }
 

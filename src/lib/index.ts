@@ -1,4 +1,15 @@
 export {
+  CLI_EXIT_CODES,
+  type CliErrorCode,
+  type CliErrorEnvelope,
+  type CliResultMeta,
+  type CliSuccessEnvelope,
+  classifyCliError,
+  createErrorEnvelope,
+  createSuccessEnvelope,
+  exitCodeForError,
+} from './cli-contract.js';
+export {
   type CookieExtractionResult,
   type CookieSource,
   extractCookiesFromChrome,

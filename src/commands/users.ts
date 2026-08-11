@@ -29,12 +29,10 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
 
         const usePagination = cmdOpts.all || cmdOpts.cursor;
         if (maxPages !== undefined && !cmdOpts.all) {
-          console.error(`${ctx.p('err')}--max-pages requires --all.`);
-          process.exit(1);
+          ctx.fail(`--max-pages requires --all.`);
         }
         if (maxPages !== undefined && (!Number.isFinite(maxPages) || maxPages <= 0)) {
-          console.error(`${ctx.p('err')}Invalid --max-pages. Expected a positive integer.`);
-          process.exit(1);
+          ctx.fail(`Invalid --max-pages. Expected a positive integer.`);
         }
 
         const { cookies, warnings } = await ctx.resolveCredentialsFromOptions(opts);
@@ -44,8 +42,7 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
         }
 
         if (!cookies.authToken || !cookies.ct0) {
-          console.error(`${ctx.p('err')}Missing required credentials`);
-          process.exit(1);
+          ctx.fail(`Missing required credentials`);
         }
 
         const client = new TwitterClient({ cookies, timeoutMs });
@@ -54,8 +51,7 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
         if (!userId) {
           const currentUser = await client.getCurrentUser();
           if (!currentUser.success || !currentUser.user?.id) {
-            console.error(`${ctx.p('err')}Failed to get current user: ${currentUser.error || 'Unknown error'}`);
-            process.exit(1);
+            ctx.fail(`Failed to get current user: ${currentUser.error || 'Unknown error'}`);
           }
           userId = currentUser.user.id;
         }
@@ -77,8 +73,7 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
             const result = await client.getFollowing(userId, count, cursor);
 
             if (!result.success || !result.users) {
-              console.error(`${ctx.p('err')}Failed to fetch following: ${result.error}`);
-              process.exit(1);
+              ctx.fail(`Failed to fetch following: ${result.error}`);
             }
 
             let added = 0;
@@ -108,7 +103,10 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
           }
 
           if (cmdOpts.json) {
-            console.log(JSON.stringify({ users: allUsers, nextCursor: nextCursor ?? null }, null, 2));
+            ctx.printJson(
+              { users: allUsers, nextCursor: nextCursor ?? null },
+              { nextCursor: nextCursor ?? null, pagesFetched: pageNum },
+            );
           } else {
             console.error(`${ctx.p('info')}Total: ${allUsers.length} users`);
             if (nextCursor) {
@@ -133,9 +131,12 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
           if (result.success && result.users) {
             if (cmdOpts.json) {
               if (usePagination) {
-                console.log(JSON.stringify({ users: result.users, nextCursor: result.nextCursor ?? null }, null, 2));
+                ctx.printJson(
+                  { users: result.users, nextCursor: result.nextCursor ?? null },
+                  { nextCursor: result.nextCursor ?? null, pagesFetched: 1 },
+                );
               } else {
-                console.log(JSON.stringify(result.users, null, 2));
+                ctx.printJson(result.users, { pagesFetched: 1 });
               }
             } else {
               if (result.users.length === 0) {
@@ -157,8 +158,7 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
               }
             }
           } else {
-            console.error(`${ctx.p('err')}Failed to fetch following: ${result.error}`);
-            process.exit(1);
+            ctx.fail(`Failed to fetch following: ${result.error}`);
           }
         }
       },
@@ -189,12 +189,10 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
 
         const usePagination = cmdOpts.all || cmdOpts.cursor;
         if (maxPages !== undefined && !cmdOpts.all) {
-          console.error(`${ctx.p('err')}--max-pages requires --all.`);
-          process.exit(1);
+          ctx.fail(`--max-pages requires --all.`);
         }
         if (maxPages !== undefined && (!Number.isFinite(maxPages) || maxPages <= 0)) {
-          console.error(`${ctx.p('err')}Invalid --max-pages. Expected a positive integer.`);
-          process.exit(1);
+          ctx.fail(`Invalid --max-pages. Expected a positive integer.`);
         }
 
         const { cookies, warnings } = await ctx.resolveCredentialsFromOptions(opts);
@@ -204,8 +202,7 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
         }
 
         if (!cookies.authToken || !cookies.ct0) {
-          console.error(`${ctx.p('err')}Missing required credentials`);
-          process.exit(1);
+          ctx.fail(`Missing required credentials`);
         }
 
         const client = new TwitterClient({ cookies, timeoutMs });
@@ -214,8 +211,7 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
         if (!userId) {
           const currentUser = await client.getCurrentUser();
           if (!currentUser.success || !currentUser.user?.id) {
-            console.error(`${ctx.p('err')}Failed to get current user: ${currentUser.error || 'Unknown error'}`);
-            process.exit(1);
+            ctx.fail(`Failed to get current user: ${currentUser.error || 'Unknown error'}`);
           }
           userId = currentUser.user.id;
         }
@@ -237,8 +233,7 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
             const result = await client.getFollowers(userId, count, cursor);
 
             if (!result.success || !result.users) {
-              console.error(`${ctx.p('err')}Failed to fetch followers: ${result.error}`);
-              process.exit(1);
+              ctx.fail(`Failed to fetch followers: ${result.error}`);
             }
 
             let added = 0;
@@ -268,7 +263,10 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
           }
 
           if (cmdOpts.json) {
-            console.log(JSON.stringify({ users: allUsers, nextCursor: nextCursor ?? null }, null, 2));
+            ctx.printJson(
+              { users: allUsers, nextCursor: nextCursor ?? null },
+              { nextCursor: nextCursor ?? null, pagesFetched: pageNum },
+            );
           } else {
             console.error(`${ctx.p('info')}Total: ${allUsers.length} users`);
             if (nextCursor) {
@@ -293,9 +291,12 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
           if (result.success && result.users) {
             if (cmdOpts.json) {
               if (usePagination) {
-                console.log(JSON.stringify({ users: result.users, nextCursor: result.nextCursor ?? null }, null, 2));
+                ctx.printJson(
+                  { users: result.users, nextCursor: result.nextCursor ?? null },
+                  { nextCursor: result.nextCursor ?? null, pagesFetched: 1 },
+                );
               } else {
-                console.log(JSON.stringify(result.users, null, 2));
+                ctx.printJson(result.users, { pagesFetched: 1 });
               }
             } else {
               if (result.users.length === 0) {
@@ -317,8 +318,7 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
               }
             }
           } else {
-            console.error(`${ctx.p('err')}Failed to fetch followers: ${result.error}`);
-            process.exit(1);
+            ctx.fail(`Failed to fetch followers: ${result.error}`);
           }
         }
       },
@@ -355,22 +355,18 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
         }
 
         if (!cookies.authToken || !cookies.ct0) {
-          console.error(`${ctx.p('err')}Missing required credentials`);
-          process.exit(1);
+          ctx.fail(`Missing required credentials`);
         }
 
         const usePagination = cmdOpts.all || cmdOpts.cursor;
         if (maxPages !== undefined && !usePagination) {
-          console.error(`${ctx.p('err')}--max-pages requires --all or --cursor.`);
-          process.exit(1);
+          ctx.fail(`--max-pages requires --all or --cursor.`);
         }
         if (!usePagination && (!Number.isFinite(count) || count <= 0)) {
-          console.error(`${ctx.p('err')}Invalid --count. Expected a positive integer.`);
-          process.exit(1);
+          ctx.fail(`Invalid --count. Expected a positive integer.`);
         }
         if (maxPages !== undefined && (!Number.isFinite(maxPages) || maxPages <= 0)) {
-          console.error(`${ctx.p('err')}Invalid --max-pages. Expected a positive integer.`);
-          process.exit(1);
+          ctx.fail(`Invalid --max-pages. Expected a positive integer.`);
         }
 
         const client = new TwitterClient({ cookies, timeoutMs, quoteDepth });
@@ -389,8 +385,9 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
             emptyMessage: 'No liked tweets found.',
           });
         } else {
-          console.error(`${ctx.p('err')}Failed to fetch likes: ${result.error}`);
-          process.exit(1);
+          ctx.failWithTweets(`Failed to fetch likes: ${result.error}`, result, {
+            usePagination: Boolean(usePagination),
+          });
         }
       },
     );
@@ -398,6 +395,7 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
   program
     .command('whoami')
     .description('Show which Twitter account the current credentials belong to')
+    .option('--json', 'Output as a stable JSON envelope')
     .action(async () => {
       const opts = program.opts();
       const timeoutMs = ctx.resolveTimeoutFromOptions(opts);
@@ -410,8 +408,7 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
       }
 
       if (!cookies.authToken || !cookies.ct0) {
-        console.error(`${ctx.p('err')}Missing required credentials`);
-        process.exit(1);
+        ctx.fail(`Missing required credentials`);
       }
 
       if (cookies.source) {
@@ -424,13 +421,20 @@ export function registerUserCommands(program: Command, ctx: CliContext): void {
       const credentialSource = cookies.source ?? 'env/auto-detected cookies';
 
       if (result.success && result.user) {
+        if (ctx.isJson()) {
+          ctx.printJson({
+            user: result.user,
+            engine: 'graphql',
+            credentialSource,
+          });
+          return;
+        }
         console.log(`${ctx.l('user')}@${result.user.username} (${result.user.name})`);
         console.log(`${ctx.l('userId')}${result.user.id}`);
         console.log(`${ctx.l('engine')}graphql`);
         console.log(`${ctx.l('credentials')}${credentialSource}`);
       } else {
-        console.error(`${ctx.p('err')}Failed to determine current user: ${result.error ?? 'Unknown error'}`);
-        process.exit(1);
+        ctx.fail(`Failed to determine current user: ${result.error ?? 'Unknown error'}`);
       }
     });
 }

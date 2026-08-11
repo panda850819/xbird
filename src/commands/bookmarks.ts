@@ -30,8 +30,7 @@ export function registerBookmarksCommand(program: Command, ctx: CliContext): voi
         const count = Number.parseInt(cmdOpts.count || '20', 10);
         const maxPagesParsed = parsePositiveIntFlag(cmdOpts.maxPages, '--max-pages');
         if (!maxPagesParsed.ok) {
-          console.error(`${ctx.p('err')}${maxPagesParsed.error}`);
-          process.exit(1);
+          ctx.fail(`${maxPagesParsed.error}`);
         }
         const maxPages = maxPagesParsed.value;
 
@@ -42,25 +41,21 @@ export function registerBookmarksCommand(program: Command, ctx: CliContext): voi
         }
 
         if (!cookies.authToken || !cookies.ct0) {
-          console.error(`${ctx.p('err')}Missing required credentials`);
-          process.exit(1);
+          ctx.fail(`Missing required credentials`);
         }
 
         const usePagination = Boolean(cmdOpts.all || cmdOpts.cursor);
         if (maxPages !== undefined && !usePagination) {
-          console.error(`${ctx.p('err')}--max-pages requires --all or --cursor.`);
-          process.exit(1);
+          ctx.fail(`--max-pages requires --all or --cursor.`);
         }
         if (!usePagination && (!Number.isFinite(count) || count <= 0)) {
-          console.error(`${ctx.p('err')}Invalid --count. Expected a positive integer.`);
-          process.exit(1);
+          ctx.fail(`Invalid --count. Expected a positive integer.`);
         }
 
         const client = new TwitterClient({ cookies, timeoutMs });
         const folderId = cmdOpts.folderId ? extractBookmarkFolderId(cmdOpts.folderId) : null;
         if (cmdOpts.folderId && !folderId) {
-          console.error(`${ctx.p('err')}Invalid --folder-id. Expected numeric ID or https://x.com/i/bookmarks/<id>.`);
-          process.exit(1);
+          ctx.fail(`Invalid --folder-id. Expected numeric ID or https://x.com/i/bookmarks/<id>.`);
         }
         const includeRaw = cmdOpts.jsonFull ?? false;
         const timelineOptions = { includeRaw };
@@ -78,8 +73,7 @@ export function registerBookmarksCommand(program: Command, ctx: CliContext): voi
           const isJson = Boolean(cmdOpts.json || cmdOpts.jsonFull);
           ctx.printTweetsResult(result, { json: isJson, usePagination, emptyMessage });
         } else {
-          console.error(`${ctx.p('err')}Failed to fetch bookmarks: ${result.error}`);
-          process.exit(1);
+          ctx.failWithTweets(`Failed to fetch bookmarks: ${result.error}`, result, { usePagination });
         }
       },
     );

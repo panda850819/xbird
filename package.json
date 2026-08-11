@@ -41,10 +41,11 @@
   "scripts": {
     "build": "bun run build:dist && bun run build:binary",
     "build:dist": "tsc && bun scripts/copy-dist-assets.js",
-    "build:binary": "XBIRD_VERSION=$(bun -p \"require('./package.json').version\") XBIRD_GIT_SHA=$(git rev-parse --short=8 HEAD 2>/dev/null || true) bun build --compile --minify --env=XBIRD_* src/cli.ts --outfile xbird",
-    "dev": "bun src/cli.ts",
-    "xbird": "bun src/cli.ts",
+    "build:binary": "XBIRD_VERSION=$(bun --no-env-file -p \"require('./package.json').version\") XBIRD_GIT_SHA=$(git rev-parse --short=8 HEAD 2>/dev/null || true) bun --no-env-file build --compile --minify --env=XBIRD_* src/cli.ts --outfile xbird",
+    "dev": "bun --no-env-file src/cli.ts",
+    "xbird": "bun --no-env-file src/cli.ts",
     "test": "vitest run",
+    "test:package": "bun --no-env-file scripts/package-smoke.ts",
     "test:watch": "vitest",
     "test:live": "bun run build:dist && XBIRD_LIVE=1 vitest run --no-file-parallelism tests/live/live.test.ts",
     "test:live:all": "bun run build:dist && XBIRD_LIVE=1 vitest run --no-file-parallelism tests/live/live-all.test.ts",
@@ -56,7 +57,7 @@
     "lint:oxlint:fix": "oxlint --type-aware --tsconfig tsconfig.oxlint.json --import-plugin --node-plugin --vitest-plugin --deny-warnings --fix src tests scripts",
     "format": "biome format --write .",
     "binary": "bun run build:binary",
-    "graphql:update": "bun scripts/update-query-ids.ts"
+    "graphql:update": "bun --no-env-file scripts/update-query-ids.ts"
   },
   "dependencies": {
     "@steipete/sweet-cookie": "0.4.1",

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CliContext } from '../src/cli/shared.js';
 import { registerSearchCommands } from '../src/commands/search.js';
 import { TwitterClient } from '../src/lib/twitter-client.js';
+import { failLikeCli } from './helpers/cli-context.js';
 
 describe('search command', () => {
   let program: Command;
@@ -18,6 +19,7 @@ describe('search command', () => {
         warnings: [],
       }),
       p: () => '',
+      fail: failLikeCli,
       printTweetsResult: vi.fn(),
     };
   });
@@ -31,7 +33,7 @@ describe('search command', () => {
 
     try {
       await expect(program.parseAsync(['node', 'xbird', 'search', 'cats', '--max-pages', '2'])).rejects.toThrow(
-        'exit 1',
+        'exit 2',
       );
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('--max-pages requires --all or --cursor'));
     } finally {
@@ -48,7 +50,7 @@ describe('search command', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     try {
-      await expect(program.parseAsync(['node', 'xbird', 'search', 'cats', '--count', '0'])).rejects.toThrow('exit 1');
+      await expect(program.parseAsync(['node', 'xbird', 'search', 'cats', '--count', '0'])).rejects.toThrow('exit 2');
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid --count. Expected a positive integer.'));
     } finally {
       exitSpy.mockRestore();
@@ -66,7 +68,7 @@ describe('search command', () => {
     try {
       await expect(
         program.parseAsync(['node', 'xbird', 'search', 'cats', '--all', '--max-pages', '0']),
-      ).rejects.toThrow('exit 1');
+      ).rejects.toThrow('exit 2');
       expect(errorSpy).toHaveBeenCalledWith(
         expect.stringContaining('Invalid --max-pages. Expected a positive integer.'),
       );

@@ -42,6 +42,7 @@ export const KNOWN_COMMANDS = new Set([
 
 export function createProgram(ctx: CliContext): Command {
   const program: Command = new Command();
+  program.exitOverride();
 
   program.configureHelp({
     showGlobalOptions: true,
@@ -96,7 +97,7 @@ export function createProgram(ctx: CliContext): Command {
       ].join('\n\n')}\n\n${ctx.colors.section('Shortcuts')}\n${[
         formatExample('xbird <tweet-id-or-url> [--json]', 'Shorthand for `xbird read <tweet-id-or-url>`'),
       ].join('\n\n')}\n\n${ctx.colors.section('JSON Output')}\n${ctx.colors.muted(
-        `  Add ${ctx.colors.option('--json')} to: read, replies, thread, search, mentions, bookmarks, likes, following, followers, lists, list-timeline, user-tweets, query-ids`,
+        `  Add ${ctx.colors.option('--json')} to any command for a stable ${ctx.colors.argument('{ ok, data/error, meta }')} envelope`,
       )}\n${ctx.colors.muted(
         `  Add ${ctx.colors.option('--json-full')} to include raw API response in ${ctx.colors.argument('_raw')} field (tweet commands only)`,
       )}\n${ctx.colors.muted(`  (Run ${ctx.colors.command('xbird <command> --help')} to see per-command flags.)`)}`,
@@ -110,7 +111,7 @@ export function createProgram(ctx: CliContext): Command {
       )}\n${ctx.colors.muted(
         `  Supports: chromeProfile, firefoxProfile, cookieSource, cookieTimeoutMs, timeoutMs, quoteDepth`,
       )}\n\n${ctx.colors.section('Env')}\n${ctx.colors.muted(
-        `  ${ctx.colors.option('NO_COLOR')}, ${ctx.colors.option('XBIRD_TIMEOUT_MS')}, ${ctx.colors.option('XBIRD_COOKIE_TIMEOUT_MS')}, ${ctx.colors.option('XBIRD_QUOTE_DEPTH')}`,
+        `  ${ctx.colors.option('NO_COLOR')}, ${ctx.colors.option('XBIRD_TIMEOUT_MS')}, ${ctx.colors.option('XBIRD_COOKIE_TIMEOUT_MS')}, ${ctx.colors.option('XBIRD_QUOTE_DEPTH')}, ${ctx.colors.option('XBIRD_DISABLE_LIVE_WRITES')}`,
       )}`,
   );
 
@@ -123,6 +124,8 @@ export function createProgram(ctx: CliContext): Command {
     .option('--cookie-source <source>', 'Cookie source for browser cookie extraction (repeatable)', collectCookieSource)
     .option('--media <path>', 'Attach media file (repeatable, up to 4 images or 1 video)', collect)
     .option('--alt <text>', 'Alt text for the corresponding --media (repeatable)', collect)
+    .option('--dry-run', 'Preview mutation commands without contacting X')
+    .option('--expect-user <handle>', 'Require this authenticated account for mutation commands')
     .option('--timeout <ms>', 'Request timeout in milliseconds')
     .option('--quote-depth <depth>', 'Max quoted tweet depth (default: 1; 0 disables)')
     .option('--plain', 'Plain output (stable, no emoji, no color)')
