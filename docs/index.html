@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0b0d10" />
+
+    <title>xbird — fast X CLI</title>
+    <meta
+      name="description"
+      content="xbird is a fast X CLI for tweeting, replying, and reading via the X/Twitter GraphQL API (cookie auth)."
+    />
+
+    <link rel="canonical" href="https://panda850819.github.io/xbird/" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+
+    <meta property="og:title" content="xbird" />
+    <meta property="og:description" content="Fast X CLI for tweeting, replying, and reading." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://panda850819.github.io/xbird/" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..900&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    />
+
+    <link rel="stylesheet" href="./assets/site.css" />
+  </head>
+
+  <body>
+    <a class="skip" href="#content">Skip to content</a>
+
+    <div class="bg" aria-hidden="true">
+      <div class="bg__orb bg__orb--a"></div>
+      <div class="bg__orb bg__orb--b"></div>
+      <div class="bg__grid"></div>
+      <div class="bg__noise"></div>
+    </div>
+
+    <header class="top">
+      <div class="top__inner">
+        <a class="brand" href="./" aria-label="xbird home">
+          <span class="brand__mark" aria-hidden="true">
+            <img src="./assets/mark.svg" width="26" height="26" alt="" />
+          </span>
+          <span class="brand__word">xbird</span>
+        </a>
+
+        <nav class="nav">
+          <a class="nav__link" href="#install">Install</a>
+          <a class="nav__link" href="#commands">Commands</a>
+          <a class="nav__link" href="https://github.com/panda850819/xbird">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="content">
+      <section class="hero">
+        <div class="hero__inner">
+          <p class="kicker" data-reveal>Fast X CLI. Cookie auth. Zero fuss.</p>
+
+          <h1 class="title" data-reveal>
+            <span class="title__big">xbird</span>
+          </h1>
+
+          <p class="lede" data-reveal>
+            Tweet, reply, read threads, search, mentions — powered by X/Twitter GraphQL and your existing
+            browser session.
+          </p>
+
+          <div class="cta" data-reveal>
+            <a class="btn btn--hot" href="#install">Install</a>
+            <a class="btn btn--ghost" href="https://github.com/panda850819/xbird#install-and-quickstart">Quickstart</a>
+          </div>
+
+          <div class="terminal" data-reveal>
+            <div class="terminal__bar">
+              <span class="terminal__dots" aria-hidden="true">
+                <i></i><i></i><i></i>
+              </span>
+              <span class="terminal__label">copy &amp; run</span>
+            </div>
+            <div class="terminal__body">
+              <pre><code id="installCmd">bun add -g github:panda850819/xbird
+
+xbird whoami
+xbird tweet "hi from xbird"</code></pre>
+              <button class="copy" type="button" data-copy="#installCmd">
+                <span class="copy__idle">Copy</span>
+                <span class="copy__done" aria-hidden="true">Copied</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="badges" data-reveal>
+            <a class="badge" href="https://github.com/panda850819/xbird">
+              <span class="badge__k">install</span>
+              <span class="badge__v">GitHub</span>
+            </a>
+            <a class="badge" href="https://github.com/panda850819/xbird">
+              <span class="badge__k">repo</span>
+              <span class="badge__v">panda850819/xbird</span>
+            </a>
+            <a class="badge" href="https://github.com/panda850819/xbird#authentication">
+              <span class="badge__k">auth</span>
+              <span class="badge__v">cookies</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section class="stripe" id="install">
+        <div class="stripe__inner">
+          <h2 class="h2">Install</h2>
+          <div class="cards">
+            <article class="card">
+              <h3 class="h3">Bun</h3>
+              <p class="p">Install globally with Bun 1.2 or newer.</p>
+              <pre class="code"><code>bun add -g github:panda850819/xbird</code></pre>
+            </article>
+            <article class="card">
+              <h3 class="h3">From a checkout</h3>
+              <p class="p">Run the source directly with Bun.</p>
+              <pre class="code"><code>bun run dev whoami</code></pre>
+            </article>
+            <article class="card">
+              <h3 class="h3">Runtime</h3>
+              <p class="p">The installed executable runs directly on Bun.</p>
+              <pre class="code"><code>#!/usr/bin/env bun</code></pre>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="stripe stripe--tight" id="commands">
+        <div class="stripe__inner">
+          <h2 class="h2">Commands</h2>
+          <p class="p p--muted">Everything you need for a fast “read → reply → move on” loop.</p>
+
+          <div class="cmds" role="tablist" aria-label="xbird commands">
+            <button class="cmd is-on" type="button" data-cmd="tweet" role="tab" aria-selected="true">
+              tweet
+            </button>
+            <button class="cmd" type="button" data-cmd="reply" role="tab" aria-selected="false">reply</button>
+            <button class="cmd" type="button" data-cmd="read" role="tab" aria-selected="false">read</button>
+            <button class="cmd" type="button" data-cmd="thread" role="tab" aria-selected="false">thread</button>
+            <button class="cmd" type="button" data-cmd="search" role="tab" aria-selected="false">search</button>
+            <button class="cmd" type="button" data-cmd="mentions" role="tab" aria-selected="false">
+              mentions
+            </button>
+          </div>
+
+          <div class="demo" aria-live="polite">
+            <pre class="demo__pre"><code id="demoCode">xbird tweet "ship it"</code></pre>
+            <button class="copy copy--demo" type="button" data-copy="#demoCode">
+              <span class="copy__idle">Copy</span>
+              <span class="copy__done" aria-hidden="true">Copied</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="stripe stripe--end">
+        <div class="stripe__inner">
+          <h2 class="h2">How it works</h2>
+          <div class="steps">
+            <article class="step">
+              <div class="step__num">01</div>
+              <h3 class="h3">Use your existing session</h3>
+              <p class="p p--muted">
+                Cookie auth. No password prompt. Reads from Safari/Chrome/Firefox (configurable).
+              </p>
+            </article>
+            <article class="step">
+              <div class="step__num">02</div>
+              <h3 class="h3">GraphQL first</h3>
+              <p class="p p--muted">
+                Talks to X’s internal endpoints. Query IDs rotate — xbird auto-refreshes and caches them.
+              </p>
+            </article>
+            <article class="step">
+              <div class="step__num">03</div>
+              <h3 class="h3">Fast, scriptable output</h3>
+              <p class="p p--muted">
+                Human output by default. Flip to <span class="pill">--json</span> or
+                <span class="pill">--plain</span> when you need stability.
+              </p>
+            </article>
+          </div>
+
+          <aside class="notice notice--warn" role="note" aria-label="Disclaimer">
+            <div class="notice__icon" aria-hidden="true">!</div>
+            <div class="notice__body">
+              <p class="notice__title">Undocumented API.</p>
+              <p class="notice__text">
+                xbird uses X/Twitter’s private web GraphQL endpoints and rotating query IDs. X can change things anytime —
+                expect breakage without notice.
+              </p>
+            </div>
+          </aside>
+
+          <div class="footerline">
+            <a class="tiny" href="https://github.com/panda850819/xbird#authentication">
+              Authentication details
+            </a>
+            <span class="sep" aria-hidden="true">•</span>
+            <a class="tiny" href="https://github.com/panda850819/xbird#configuration">Config (JSON5)</a>
+            <span class="sep" aria-hidden="true">•</span>
+            <a class="tiny" href="https://github.com/panda850819/xbird/issues">Issues</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="bottom">
+      <div class="bottom__inner">
+        <p class="tiny">
+          Maintained by <a href="https://github.com/panda850819">panda850819</a>. Based on the original bird project by Peter Steinberger.
+        </p>
+        <p class="tiny tiny--muted">MIT licensed. Built for GitHub Pages.</p>
+      </div>
+    </footer>
+
+    <script src="./assets/site.js" type="module"></script>
+  </body>
+</html>

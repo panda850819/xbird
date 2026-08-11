@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+.vscode/
+.idea/
+.turbo/
+.eslintcache
+/xbird
+.env
+.*.bun-build
+*.zip
+*.tar
+*.tar.gz
+*.tgz

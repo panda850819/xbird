@@ -1,0 +1,82 @@
+{
+  "name": "@panda850819/xbird",
+  "version": "0.1.0",
+  "description": "Unofficial, script-friendly X CLI powered by Bun and the web GraphQL API",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/panda850819/xbird.git"
+  },
+  "bugs": {
+    "url": "https://github.com/panda850819/xbird/issues"
+  },
+  "homepage": "https://github.com/panda850819/xbird#readme",
+  "keywords": [
+    "x",
+    "twitter",
+    "cli",
+    "bun",
+    "pi-package",
+    "agent-skill"
+  ],
+  "pi": {
+    "skills": [
+      "./skills"
+    ]
+  },
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "bin": {
+    "xbird": "src/cli.ts"
+  },
+  "files": [
+    "src",
+    "dist",
+    "skills",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "bun run build:dist && bun run build:binary",
+    "build:dist": "tsc && bun scripts/copy-dist-assets.js",
+    "build:binary": "XBIRD_VERSION=$(bun -p \"require('./package.json').version\") XBIRD_GIT_SHA=$(git rev-parse --short=8 HEAD 2>/dev/null || true) bun build --compile --minify --env=XBIRD_* src/cli.ts --outfile xbird",
+    "dev": "bun src/cli.ts",
+    "xbird": "bun src/cli.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:live": "bun run build:dist && XBIRD_LIVE=1 vitest run --no-file-parallelism tests/live/live.test.ts",
+    "test:live:all": "bun run build:dist && XBIRD_LIVE=1 vitest run --no-file-parallelism tests/live/live-all.test.ts",
+    "lint": "bun run lint:biome && bun run lint:oxlint",
+    "lint:biome": "biome check .",
+    "lint:oxlint": "oxlint --type-aware --tsconfig tsconfig.oxlint.json --import-plugin --node-plugin --vitest-plugin --deny-warnings src tests scripts",
+    "lint:fix": "bun run lint:biome:fix && bun run lint:oxlint:fix",
+    "lint:biome:fix": "biome check --write .",
+    "lint:oxlint:fix": "oxlint --type-aware --tsconfig tsconfig.oxlint.json --import-plugin --node-plugin --vitest-plugin --deny-warnings --fix src tests scripts",
+    "format": "biome format --write .",
+    "binary": "bun run build:binary",
+    "graphql:update": "bun scripts/update-query-ids.ts"
+  },
+  "dependencies": {
+    "@steipete/sweet-cookie": "0.4.1",
+    "commander": "14.0.3",
+    "json5": "2.2.3",
+    "kleur": "4.1.5"
+  },
+  "trustedDependencies": [
+    "esbuild"
+  ],
+  "devDependencies": {
+    "@biomejs/biome": "2.3.10",
+    "@types/node": "25.0.3",
+    "@vitest/coverage-v8": "4.0.16",
+    "oxlint": "1.36.0",
+    "oxlint-tsgolint": "0.10.0",
+    "typescript": "5.9.3",
+    "vitest": "4.0.16"
+  },
+  "engines": {
+    "bun": ">=1.2"
+  }
+}
