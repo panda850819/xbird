@@ -180,6 +180,11 @@ describe('TwitterClient pagination for thread and replies', () => {
           ok: false,
           status: 500,
           text: async () => 'Internal Server Error',
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          text: async () => 'Internal Server Error',
         });
 
       const client = new TwitterClient({ cookies: validCookies });

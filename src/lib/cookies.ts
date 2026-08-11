@@ -10,6 +10,7 @@ export interface TwitterCookies {
   ct0: string | null;
   cookieHeader: string | null;
   source: string | null;
+  userId?: string | null;
 }
 
 export interface CookieExtractionResult {
@@ -19,7 +20,8 @@ export interface CookieExtractionResult {
 
 export type CookieSource = 'safari' | 'chrome' | 'firefox';
 
-const TWITTER_COOKIE_NAMES = ['auth_token', 'ct0'] as const;
+const TWITTER_COOKIE_NAMES = ['auth_token', 'ct0', 'twid'] as const;
+const TWID_USER_ID_PATTERN = /^u=(\d+)$/;
 const TWITTER_URL = 'https://x.com/';
 const TWITTER_ORIGINS: string[] = ['https://x.com/', 'https://twitter.com/'];
 const DEFAULT_COOKIE_TIMEOUT_MS = 30_000;
@@ -32,8 +34,19 @@ function normalizeValue(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function cookieHeader(authToken: string, ct0: string): string {
-  return `auth_token=${authToken}; ct0=${ct0}`;
+function cookieHeader(authToken: string, ct0: string, twid?: string | null): string {
+  return `auth_token=${authToken}; ct0=${ct0}${twid ? `; twid=${twid}` : ''}`;
+}
+
+function userIdFromTwid(twid: string | null): string | null {
+  if (!twid) {
+    return null;
+  }
+  try {
+    return decodeURIComponent(twid).match(TWID_USER_ID_PATTERN)?.[1] ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function buildEmpty(): TwitterCookies {
@@ -122,6 +135,7 @@ async function readTwitterCookiesFromBrowser(options: {
 
   const authToken = pickCookieValue(cookies, 'auth_token');
   const ct0 = pickCookieValue(cookies, 'ct0');
+  const twid = pickCookieValue(cookies, 'twid');
   if (authToken) {
     out.authToken = authToken;
   }
@@ -130,7 +144,8 @@ async function readTwitterCookiesFromBrowser(options: {
   }
 
   if (out.authToken && out.ct0) {
-    out.cookieHeader = cookieHeader(out.authToken, out.ct0);
+    out.cookieHeader = cookieHeader(out.authToken, out.ct0, twid);
+    out.userId = userIdFromTwid(twid);
     out.source = labelForSource(
       options.source,
       options.source === 'chrome' ? options.chromeProfile : options.firefoxProfile,

@@ -179,6 +179,23 @@ describe('cookies', () => {
       );
     });
 
+    it('preserves the browser user ID from twid', async () => {
+      sweet.results.set('chrome', {
+        cookies: [
+          { name: 'auth_token', value: 'test_auth', domain: 'x.com' },
+          { name: 'ct0', value: 'test_ct0', domain: 'x.com' },
+          { name: 'twid', value: 'u%3D12345', domain: 'x.com' },
+        ],
+        warnings: [],
+      });
+
+      const { resolveCredentials } = await import('../src/lib/cookies.js');
+      const result = await resolveCredentials({ cookieSource: 'chrome' });
+
+      expect(result.cookies.userId).toBe('12345');
+      expect(result.cookies.cookieHeader).toContain('twid=u%3D12345');
+    });
+
     it('falls back to Chrome when enabled and Firefox disabled', async () => {
       sweet.results.set('chrome', {
         cookies: [

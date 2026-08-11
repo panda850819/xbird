@@ -244,11 +244,13 @@ export function withTweetDetails<TBase extends AbstractConstructor<TwitterClient
               headers: this.getHeaders(),
             });
 
-            if (response.status !== 404) {
+            if (response.ok) {
               return await parseResponse(response);
             }
 
-            had404 = true;
+            if (response.status === 404) {
+              had404 = true;
+            }
 
             const postResponse = await this.fetchWithTimeout(`${TWITTER_API_BASE}/${queryId}/TweetDetail`, {
               method: 'POST',
@@ -258,6 +260,10 @@ export function withTweetDetails<TBase extends AbstractConstructor<TwitterClient
 
             if (postResponse.status !== 404) {
               return await parseResponse(postResponse);
+            }
+
+            if (response.status !== 404) {
+              return await parseResponse(response);
             }
 
             lastError = 'HTTP 404';
