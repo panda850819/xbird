@@ -1,0 +1,16 @@
+{
+  "name": "@panda850819/ego-lite-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "ego-lite-mcp": "src/index.ts"
+  },
+  "scripts": {
+    "dev": "bun src/index.ts",
+    "test": "bun test"
+  },
+  "engines": {
+    "bun": ">=1.2"
+  }
+}
