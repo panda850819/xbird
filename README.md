@@ -131,6 +131,32 @@ xbird --cookie-source chrome --chrome-profile Default whoami
 xbird --cookie-source arc whoami
 ```
 
+## Local MCP server
+
+`xbird` includes an experimental read-only MCP stdio server for local AI clients. It exposes only `x_search`, `x_read`, `x_thread`, and `x_replies`; posting, following, bookmark mutation, DMs, and arbitrary shell execution are intentionally not available.
+
+Run it directly:
+
+```bash
+xbird-mcp
+# or from a checkout
+bun run mcp
+```
+
+A typical stdio MCP client configuration can launch the installed executable without opening a network port:
+
+```json
+{
+  "mcpServers": {
+    "xbird": {
+      "command": "xbird-mcp"
+    }
+  }
+}
+```
+
+Authentication is resolved inside the local xbird process from the same environment variables or browser cookies used by the CLI. The MCP tool results never intentionally include `auth_token`, `ct0`, or the cookie header. The server supports the current `2026-07-28` MCP protocol and the legacy `2025-11-25` initialize handshake for local-client compatibility.
+
 ## Configuration
 
 Precedence is CLI flags, environment variables, project config, then global config.
