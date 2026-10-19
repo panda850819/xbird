@@ -298,23 +298,18 @@ export function withUsers<TBase extends AbstractConstructor<TwitterClientBase>>(
 
       const features = buildFollowingFeatures();
 
-      const params = new URLSearchParams({
-        variables: JSON.stringify(variables),
-        features: JSON.stringify(features),
-      });
-
       const tryOnce = async () => {
         let lastError: string | undefined;
         let had404 = false;
         const queryIds = await this.getFollowingQueryIds();
 
         for (const queryId of queryIds) {
-          const url = `${TWITTER_API_BASE}/${queryId}/Following?${params.toString()}`;
-
           try {
-            const response = await this.fetchWithTimeout(url, {
-              method: 'GET',
-              headers: this.getHeaders(),
+            const { response, getError } = await this.fetchGraphqlRead({
+              queryId,
+              operation: 'Following',
+              variables,
+              features,
             });
 
             if (response.status === 404) {
@@ -325,7 +320,7 @@ export function withUsers<TBase extends AbstractConstructor<TwitterClientBase>>(
 
             if (!response.ok) {
               const text = await response.text();
-              return { success: false as const, error: this.formatHttpError(response, text), had404 };
+              return { success: false as const, error: this.formatHttpError(response, text, getError), had404 };
             }
 
             const data = (await response.json()) as {

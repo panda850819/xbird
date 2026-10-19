@@ -1,6 +1,5 @@
 import { normalizeHandle } from './normalize-handle.js';
 import type { AbstractConstructor, Mixin, TwitterClientBase } from './twitter-client-base.js';
-import { TWITTER_API_BASE } from './twitter-client-constants.js';
 
 /** Result of username to userId lookup */
 export interface UserLookupResult {
@@ -54,21 +53,16 @@ export function withUserLookup<TBase extends AbstractConstructor<TwitterClientBa
         withAuxiliaryUserLabels: false,
       };
 
-      const params = new URLSearchParams({
-        variables: JSON.stringify(variables),
-        features: JSON.stringify(features),
-        fieldToggles: JSON.stringify(fieldToggles),
-      });
-
       let lastError: string | undefined;
 
       for (const queryId of queryIds) {
-        const url = `${TWITTER_API_BASE}/${queryId}/UserByScreenName?${params.toString()}`;
-
         try {
-          const response = await this.fetchWithTimeout(url, {
-            method: 'GET',
-            headers: this.getHeaders(),
+          const { response, getError } = await this.fetchGraphqlRead({
+            queryId,
+            operation: 'UserByScreenName',
+            variables,
+            features,
+            fieldToggles,
           });
 
           if (!response.ok) {
@@ -78,7 +72,7 @@ export function withUserLookup<TBase extends AbstractConstructor<TwitterClientBa
               lastError = `HTTP ${response.status}`;
               continue;
             }
-            lastError = this.formatHttpError(response, text);
+            lastError = this.formatHttpError(response, text, getError);
             continue;
           }
 

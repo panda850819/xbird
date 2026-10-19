@@ -13,15 +13,6 @@ import {
   unwrapTweetResult,
 } from './twitter-client-utils.js';
 
-function hasTwitterErrorCode(body: string, code: number): boolean {
-  try {
-    const parsed = JSON.parse(body) as { errors?: Array<{ code?: number }> };
-    return parsed.errors?.some((error) => error.code === code) ?? false;
-  } catch {
-    return false;
-  }
-}
-
 /** Options for tweet fetching methods */
 export interface TweetFetchOptions {
   /** Include raw GraphQL response in `_raw` field */
@@ -192,17 +183,11 @@ export function withTweetDetails<TBase extends AbstractConstructor<TwitterClient
         withArticleRichContentState: true,
       };
 
-      const params = new URLSearchParams({
-        variables: JSON.stringify(variables),
-        features: JSON.stringify(features),
-        fieldToggles: JSON.stringify(fieldToggles),
-      });
-
       try {
-        const parseResponse = async (response: Response) => {
+        const parseResponse = async (response: Response, getError?: string) => {
           if (!response.ok) {
             const text = await response.text();
-            return { success: false as const, error: this.formatHttpError(response, text) };
+            return { success: false as const, error: this.formatHttpError(response, text, getError) };
           }
 
           const data = (await response.json()) as {
@@ -244,35 +229,14 @@ export function withTweetDetails<TBase extends AbstractConstructor<TwitterClient
           const queryIds = await this.getTweetDetailQueryIds();
 
           for (const queryId of queryIds) {
-            const url = `${TWITTER_API_BASE}/${queryId}/TweetDetail?${params.toString()}`;
-            const response = await this.fetchWithTimeout(url, {
-              method: 'GET',
-              headers: this.getHeaders(),
-            });
-
-            if (response.ok) {
-              return await parseResponse(response);
-            }
-
-            if (response.status === 401) {
-              const body = await response.text();
-              if (!hasTwitterErrorCode(body, 32)) {
-                return { success: false as const, error: this.formatHttpError(response, body) };
-              }
-            } else if (response.status !== 404) {
-              return await parseResponse(response);
-            }
-
-            const postResponse = await this.fetchWithTimeout(`${TWITTER_API_BASE}/${queryId}/TweetDetail`, {
-              method: 'POST',
-              headers: this.getHeaders(),
-              body: JSON.stringify({ variables, features, fieldToggles, queryId }),
-            });
-
-            if (postResponse.status === 404) {
+            const { response, getError } = await this.fetchGraphqlRead(
+              { queryId, operation: 'TweetDetail', variables, features, fieldToggles },
+              { postOn404: true },
+            );
+            if (response.status === 404) {
               continue;
             }
-            return await parseResponse(postResponse);
+            return await parseResponse(response, getError);
           }
 
           return null;
