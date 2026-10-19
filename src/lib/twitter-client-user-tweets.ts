@@ -35,7 +35,7 @@ export function withUserTweets<TBase extends AbstractConstructor<TwitterClientBa
 
     private async getUserTweetsQueryIds(): Promise<string[]> {
       const primary = await this.getQueryId('UserTweets');
-      // Fallback query ID observed from web client
+      // Older ID stays as a 404 fallback.
       return Array.from(new Set([primary, 'Wms1GvIiHXAPBaCr9KblaA']));
     }
 

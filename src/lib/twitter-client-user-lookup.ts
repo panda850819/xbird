@@ -24,8 +24,13 @@ export function withUserLookup<TBase extends AbstractConstructor<TwitterClientBa
     }
 
     private async getUserByScreenNameGraphQL(screenName: string): Promise<UserLookupResult> {
-      // UserByScreenName query IDs observed from web client
-      const queryIds = ['xc8f1g7BYqr6VTzTbvNlGw', 'qW5u-DAuXpMEG0zA1F7UGQ', 'sLVLhk0bGj3MVFEKTdax1w'];
+      // UserByScreenName query IDs observed from web client, newest first
+      const queryIds = [
+        'AMIBMjtxEEATh4z8V9GtRg',
+        'xc8f1g7BYqr6VTzTbvNlGw',
+        'qW5u-DAuXpMEG0zA1F7UGQ',
+        'sLVLhk0bGj3MVFEKTdax1w',
+      ];
 
       const variables = {
         screen_name: screenName,
@@ -34,19 +39,17 @@ export function withUserLookup<TBase extends AbstractConstructor<TwitterClientBa
 
       const features = {
         hidden_profile_subscriptions_enabled: true,
-        hidden_profile_likes_enabled: true,
-        rweb_tipjar_consumption_enabled: true,
-        responsive_web_graphql_exclude_directive_enabled: true,
+        profile_label_improvements_pcf_label_in_post_enabled: true,
+        responsive_web_profile_redirect_enabled: true,
+        rweb_tipjar_consumption_enabled: false,
         verified_phone_label_enabled: false,
         subscriptions_verification_info_is_identity_verified_enabled: true,
         subscriptions_verification_info_verified_since_enabled: true,
         highlights_tweets_tab_ui_enabled: true,
         responsive_web_twitter_article_notes_tab_enabled: true,
-        subscriptions_feature_can_gift_premium: true,
+        subscriptions_feature_can_gift_premium: false,
         creator_subscriptions_tweet_preview_api_enabled: true,
-        responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
         responsive_web_graphql_timeline_navigation_enabled: true,
-        blue_business_profile_image_shape_enabled: true,
       };
 
       const fieldToggles = {

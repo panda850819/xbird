@@ -5,7 +5,7 @@ import {
   SETTINGS_USER_ID_REGEX,
   TWITTER_API_BASE,
 } from './twitter-client-constants.js';
-import { buildFollowingFeatures } from './twitter-client-features.js';
+import { buildFollowersFeatures, buildFollowingFeatures } from './twitter-client-features.js';
 import type { CurrentUserResult, FollowingResult, TwitterUser } from './twitter-client-types.js';
 import { extractCursorFromInstructions, parseUsersFromInstructions } from './twitter-client-utils.js';
 
@@ -39,7 +39,8 @@ export function withUsers<TBase extends AbstractConstructor<TwitterClientBase>>(
 
     private async getFollowingQueryIds(): Promise<string[]> {
       const primary = await this.getQueryId('Following');
-      return Array.from(new Set([primary, 'BEkNpEt5pNETESoqMsTEGA']));
+      // Older IDs stay as 404 fallbacks.
+      return Array.from(new Set([primary, 'mWYeougg_ocJS2Vr1Vt28w', 'BEkNpEt5pNETESoqMsTEGA']));
     }
 
     private async getFollowersQueryIds(): Promise<string[]> {
@@ -397,7 +398,7 @@ export function withUsers<TBase extends AbstractConstructor<TwitterClientBase>>(
         variables.cursor = cursor;
       }
 
-      const features = buildFollowingFeatures();
+      const features = buildFollowersFeatures();
 
       const params = new URLSearchParams({
         variables: JSON.stringify(variables),

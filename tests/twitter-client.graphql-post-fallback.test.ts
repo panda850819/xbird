@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TwitterClient } from '../src/lib/twitter-client.js';
 import type { GraphqlReadOptions, GraphqlReadRequest, GraphqlReadResponse } from '../src/lib/twitter-client-base.js';
+import { QUERY_IDS } from '../src/lib/twitter-client-constants.js';
 import { validCookies } from './twitter-client-fixtures.js';
 
 const originalFetch = global.fetch;
@@ -273,5 +274,25 @@ describe('GraphQL reads fall back to POST on 401 code 32', () => {
     expect(result.error).not.toContain(validCookies.authToken);
     expect(result.error).not.toContain(validCookies.ct0);
     expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('2026-10 query ID refresh', () => {
+  it('ships the current Following and UserTweets IDs as built-ins', () => {
+    expect(QUERY_IDS.Following).toBe('ath0FIohYC_c3Hj3SsxoCg');
+    expect(QUERY_IDS.UserTweets).toBe('7_KBXBpG0zBPRN6UCIV0-w');
+  });
+
+  it('tries the current UserByScreenName ID first', async () => {
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        ok({ data: { user: { result: { __typename: 'User', rest_id: '42', legacy: { screen_name: 'carol' } } } } }),
+      );
+    global.fetch = mockFetch as unknown as typeof fetch;
+
+    await new TwitterClient({ cookies: validCookies }).getUserIdByUsername('carol');
+
+    expect(mockFetch.mock.calls[0]?.[0]).toContain('/AMIBMjtxEEATh4z8V9GtRg/UserByScreenName?');
   });
 });
