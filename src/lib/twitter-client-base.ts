@@ -1,6 +1,11 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { runtimeQueryIds } from './runtime-query-ids.js';
-import { type OperationName, QUERY_IDS, TARGET_QUERY_ID_OPERATIONS } from './twitter-client-constants.js';
+import {
+  type OperationName,
+  QUERY_IDS,
+  TARGET_QUERY_ID_OPERATIONS,
+  TWITTER_API_BASE,
+} from './twitter-client-constants.js';
 import type { CurrentUserResult, TwitterClientOptions } from './twitter-client-types.js';
 import { normalizeQuoteDepth } from './twitter-client-utils.js';
 
@@ -11,6 +16,34 @@ export type AbstractConstructor<T = object> = abstract new (...args: any[]) => T
 export type Mixin<TBase extends AbstractConstructor<TwitterClientBase>, TAdded> = abstract new (
   ...args: ConstructorParameters<TBase>
 ) => TwitterClientBase & TAdded;
+
+export function hasTwitterErrorCode(body: string, code: number): boolean {
+  try {
+    const parsed = JSON.parse(body) as { errors?: Array<{ code?: number }> };
+    return parsed.errors?.some((error) => error.code === code) ?? false;
+  } catch {
+    return false;
+  }
+}
+
+export interface GraphqlReadRequest {
+  queryId: string;
+  operation: string;
+  variables: Record<string, unknown>;
+  features: Record<string, unknown>;
+  fieldToggles?: Record<string, unknown>;
+}
+
+export interface GraphqlReadOptions {
+  /** Also retry as POST when GET returns 404 (TweetDetail keeps this legacy behavior). */
+  postOn404?: boolean;
+}
+
+export interface GraphqlReadResponse {
+  response: Response;
+  /** Set when `response` came from the POST retry; describes the rejected GET. */
+  getError?: string;
+}
 
 export abstract class TwitterClientBase {
   protected authToken: string;
@@ -72,10 +105,62 @@ export abstract class TwitterClientBase {
     return Array.from(new Set([primary, 'M1jEez78PEfVfbQLvlWMvQ', '5h0kNbk3ii97rmfY6CdgAA', 'Tp1sewRU1AsZpBWhqCZicQ']));
   }
 
-  protected formatHttpError(response: Response, body: string): string {
+  protected formatHttpError(response: Response, body: string, getError?: string): string {
     const retryAfter = response.headers?.get?.('retry-after');
     const retryAfterSuffix = retryAfter ? `; Retry-After: ${retryAfter}` : '';
-    return `HTTP ${response.status}${retryAfterSuffix}: ${body.slice(0, 200)}`;
+    const fallbackSuffix = getError ? ` on POST fallback after ${getError}` : '';
+    return `HTTP ${response.status}${retryAfterSuffix}${fallbackSuffix}: ${body.slice(0, 200)}`;
+  }
+
+  /**
+   * GraphQL read via GET; X rejects GET for some sessions with 401 code 32 while
+   * accepting the same request as POST, so retry once as POST in that case.
+   */
+  protected async fetchGraphqlRead(
+    request: GraphqlReadRequest,
+    options: GraphqlReadOptions = {},
+  ): Promise<GraphqlReadResponse> {
+    const { queryId, operation, variables, features, fieldToggles } = request;
+    const params = new URLSearchParams({
+      variables: JSON.stringify(variables),
+      features: JSON.stringify(features),
+      ...(fieldToggles ? { fieldToggles: JSON.stringify(fieldToggles) } : {}),
+    });
+
+    const getResponse = await this.fetchWithTimeout(
+      `${TWITTER_API_BASE}/${queryId}/${operation}?${params.toString()}`,
+      {
+        method: 'GET',
+        headers: this.getHeaders(),
+      },
+    );
+
+    let getError: string;
+    if (getResponse.status === 401) {
+      const body = await getResponse.text();
+      if (!hasTwitterErrorCode(body, 32)) {
+        // Body is consumed; hand callers an equivalent unread response.
+        return {
+          response: new Response(body, {
+            status: getResponse.status,
+            statusText: getResponse.statusText,
+            headers: getResponse.headers,
+          }),
+        };
+      }
+      getError = 'GET HTTP 401 (code 32)';
+    } else if (options.postOn404 && getResponse.status === 404) {
+      getError = 'GET HTTP 404';
+    } else {
+      return { response: getResponse };
+    }
+
+    const postResponse = await this.fetchWithTimeout(`${TWITTER_API_BASE}/${queryId}/${operation}`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ variables, features, ...(fieldToggles ? { fieldToggles } : {}), queryId }),
+    });
+    return { response: postResponse, getError };
   }
 
   protected async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {

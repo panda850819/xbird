@@ -1,5 +1,4 @@
 import type { AbstractConstructor, Mixin, TwitterClientBase } from './twitter-client-base.js';
-import { TWITTER_API_BASE } from './twitter-client-constants.js';
 import { buildUserTweetsFeatures } from './twitter-client-features.js';
 import type { GraphqlTweetResult, SearchResult, TweetData } from './twitter-client-types.js';
 import { extractCursorFromInstructions, parseTweetsFromInstructions } from './twitter-client-utils.js';
@@ -36,7 +35,7 @@ export function withUserTweets<TBase extends AbstractConstructor<TwitterClientBa
 
     private async getUserTweetsQueryIds(): Promise<string[]> {
       const primary = await this.getQueryId('UserTweets');
-      // Fallback query ID observed from web client
+      // Older ID stays as a 404 fallback.
       return Array.from(new Set([primary, 'Wms1GvIiHXAPBaCr9KblaA']));
     }
 
@@ -89,19 +88,14 @@ export function withUserTweets<TBase extends AbstractConstructor<TwitterClientBa
           withArticlePlainText: false,
         };
 
-        const params = new URLSearchParams({
-          variables: JSON.stringify(variables),
-          features: JSON.stringify(features),
-          fieldToggles: JSON.stringify(fieldToggles),
-        });
-
         for (const queryId of queryIds) {
-          const url = `${TWITTER_API_BASE}/${queryId}/UserTweets?${params.toString()}`;
-
           try {
-            const response = await this.fetchWithTimeout(url, {
-              method: 'GET',
-              headers: this.getHeaders(),
+            const { response, getError } = await this.fetchGraphqlRead({
+              queryId,
+              operation: 'UserTweets',
+              variables,
+              features,
+              fieldToggles,
             });
 
             if (response.status === 404) {
@@ -112,7 +106,7 @@ export function withUserTweets<TBase extends AbstractConstructor<TwitterClientBa
 
             if (!response.ok) {
               const text = await response.text();
-              return { success: false as const, error: this.formatHttpError(response, text), had404 };
+              return { success: false as const, error: this.formatHttpError(response, text, getError), had404 };
             }
 
             const data = (await response.json()) as {

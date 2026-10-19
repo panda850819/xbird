@@ -1,5 +1,4 @@
 import type { AbstractConstructor, Mixin, TwitterClientBase } from './twitter-client-base.js';
-import { TWITTER_API_BASE } from './twitter-client-constants.js';
 import { buildHomeTimelineFeatures } from './twitter-client-features.js';
 import type { GraphqlTweetResult, SearchResult, TweetData } from './twitter-client-types.js';
 import { extractCursorFromInstructions, parseTweetsFromInstructions } from './twitter-client-utils.js';
@@ -84,18 +83,8 @@ export function withHome<TBase extends AbstractConstructor<TwitterClientBase>>(
             ...(pageCursor ? { cursor: pageCursor } : {}),
           };
 
-          const params = new URLSearchParams({
-            variables: JSON.stringify(variables),
-            features: JSON.stringify(features),
-          });
-
-          const url = `${TWITTER_API_BASE}/${queryId}/${operation}?${params.toString()}`;
-
           try {
-            const response = await this.fetchWithTimeout(url, {
-              method: 'GET',
-              headers: this.getHeaders(),
-            });
+            const { response, getError } = await this.fetchGraphqlRead({ queryId, operation, variables, features });
 
             if (response.status === 404) {
               had404 = true;
@@ -105,7 +94,7 @@ export function withHome<TBase extends AbstractConstructor<TwitterClientBase>>(
 
             if (!response.ok) {
               const text = await response.text();
-              return { success: false as const, error: this.formatHttpError(response, text), had404 };
+              return { success: false as const, error: this.formatHttpError(response, text, getError), had404 };
             }
 
             const data = (await response.json()) as {
