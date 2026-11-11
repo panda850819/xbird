@@ -14,6 +14,7 @@ All notable changes to `xbird` are documented here.
 - Plain output mode for human-readable scripts and agents.
 - Bounded cursor pagination and resumable cursors.
 - Runtime refresh and caching for rotating GraphQL query IDs and feature flags.
+- Query-ID discovery scans x-web `entry-client-*.js` bundles and fills `SearchTimeline` from twitter-openapi; search tries fallback query IDs and refreshes once on Internal server error.
 - Long-form Notes and Articles parsing, quoted posts, and media metadata.
 - Agent Skills-compatible usage guide in `skills/xbird`.
 - Mutation safeguards with `XBIRD_DISABLE_LIVE_WRITES`, `--dry-run`, and `--expect-user`.

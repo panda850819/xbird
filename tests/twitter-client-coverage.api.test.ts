@@ -101,9 +101,7 @@ describe('TwitterClient API coverage', () => {
 
   describe('search error paths', () => {
     it('returns an error for non-ok responses', async () => {
-      const mockFetch = vi
-        .fn()
-        .mockResolvedValueOnce(makeResponse({ ok: false, status: 500, text: async () => 'down' }));
+      const mockFetch = vi.fn().mockResolvedValue(makeResponse({ ok: false, status: 500, text: async () => 'down' }));
       global.fetch = mockFetch as unknown as typeof fetch;
 
       const client = new TwitterClient({ cookies: validCookies });
@@ -224,9 +222,7 @@ describe('TwitterClient API coverage', () => {
 
   describe('following/followers error paths', () => {
     it('returns an error for non-ok responses', async () => {
-      const mockFetch = vi
-        .fn()
-        .mockResolvedValueOnce(makeResponse({ ok: false, status: 500, text: async () => 'down' }));
+      const mockFetch = vi.fn().mockResolvedValue(makeResponse({ ok: false, status: 500, text: async () => 'down' }));
       global.fetch = mockFetch as unknown as typeof fetch;
 
       const client = new TwitterClient({ cookies: validCookies });
@@ -289,9 +285,7 @@ describe('TwitterClient API coverage', () => {
     });
 
     it('returns an error for non-ok responses', async () => {
-      const mockFetch = vi
-        .fn()
-        .mockResolvedValueOnce(makeResponse({ ok: false, status: 500, text: async () => 'down' }));
+      const mockFetch = vi.fn().mockResolvedValue(makeResponse({ ok: false, status: 500, text: async () => 'down' }));
       global.fetch = mockFetch as unknown as typeof fetch;
 
       const client = new TwitterClient({ cookies: validCookies });

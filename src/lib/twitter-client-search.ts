@@ -5,6 +5,7 @@ import type { SearchResult, TweetData } from './twitter-client-types.js';
 import { extractCursorFromInstructions, parseTweetsFromInstructions } from './twitter-client-utils.js';
 
 const RAW_QUERY_MISSING_REGEX = /must be defined/i;
+const INTERNAL_SERVER_ERROR_REGEX = /internal server error/i;
 
 /** Options for search methods */
 export interface SearchFetchOptions {
@@ -45,6 +46,19 @@ function isQueryIdMismatch(payload: string): boolean {
   }
 }
 
+function isInternalServerError(status: number, payload: string): boolean {
+  return status >= 500 || INTERNAL_SERVER_ERROR_REGEX.test(payload);
+}
+
+/**
+ * Outcome of trying every SearchTimeline query ID once. `staleQueryId` means
+ * at least one ID looked rotated or broken (404, validation mismatch, or
+ * Internal server error), so a single query-ID refresh is worth attempting.
+ */
+type SearchPageAttempt =
+  | { success: true; tweets: TweetData[]; cursor?: string }
+  | { success: false; error: string; staleQueryId: boolean };
+
 export function withSearch<TBase extends AbstractConstructor<TwitterClientBase>>(
   Base: TBase,
 ): Mixin<TBase, TwitterClientSearchMethods> {
@@ -82,9 +96,9 @@ export function withSearch<TBase extends AbstractConstructor<TwitterClientBase>>
       let pagesFetched = 0;
       const { includeRaw = false, maxPages } = options;
 
-      const fetchPage = async (pageCount: number, pageCursor?: string) => {
+      const fetchPage = async (pageCount: number, pageCursor?: string): Promise<SearchPageAttempt> => {
         let lastError: string | undefined;
-        let had404 = false;
+        let staleQueryId = false;
         const queryIds = await this.getSearchTimelineQueryIds();
 
         for (const queryId of queryIds) {
@@ -93,6 +107,8 @@ export function withSearch<TBase extends AbstractConstructor<TwitterClientBase>>
             count: pageCount,
             querySource: 'typed_query',
             product: 'Latest',
+            withGrokTranslatedBio: true,
+            withQuickPromoteEligibilityTweetFields: false,
             ...(pageCursor ? { cursor: pageCursor } : {}),
           };
 
@@ -110,19 +126,24 @@ export function withSearch<TBase extends AbstractConstructor<TwitterClientBase>>
             });
 
             if (response.status === 404) {
-              had404 = true;
+              staleQueryId = true;
               lastError = `HTTP ${response.status}`;
               continue;
             }
 
             if (!response.ok) {
               const text = await response.text();
+              if (isInternalServerError(response.status, text)) {
+                staleQueryId = true;
+                lastError = this.formatHttpError(response, text);
+                continue;
+              }
               const shouldRefreshQueryIds =
                 (response.status === 400 || response.status === 422) && isQueryIdMismatch(text);
               return {
-                success: false as const,
+                success: false,
                 error: this.formatHttpError(response, text),
-                had404: had404 || shouldRefreshQueryIds,
+                staleQueryId: staleQueryId || shouldRefreshQueryIds,
               };
             }
 
@@ -170,13 +191,19 @@ export function withSearch<TBase extends AbstractConstructor<TwitterClientBase>>
             };
 
             if (data.errors && data.errors.length > 0) {
+              const message = data.errors.map((e) => e.message).join(', ');
+              if (INTERNAL_SERVER_ERROR_REGEX.test(message)) {
+                staleQueryId = true;
+                lastError = message;
+                continue;
+              }
               const shouldRefreshQueryIds = data.errors.some(
                 (error) => error?.extensions?.code === 'GRAPHQL_VALIDATION_FAILED',
               );
               return {
-                success: false as const,
-                error: data.errors.map((e) => e.message).join(', '),
-                had404: had404 || shouldRefreshQueryIds,
+                success: false,
+                error: message,
+                staleQueryId: staleQueryId || shouldRefreshQueryIds,
               };
             }
 
@@ -184,29 +211,22 @@ export function withSearch<TBase extends AbstractConstructor<TwitterClientBase>>
             const pageTweets = parseTweetsFromInstructions(instructions, { quoteDepth: this.quoteDepth, includeRaw });
             const nextCursor = extractCursorFromInstructions(instructions);
 
-            return { success: true as const, tweets: pageTweets, cursor: nextCursor, had404 };
+            return { success: true, tweets: pageTweets, cursor: nextCursor };
           } catch (error) {
             lastError = error instanceof Error ? error.message : String(error);
           }
         }
 
-        return { success: false as const, error: lastError ?? 'Unknown error fetching search results', had404 };
+        return { success: false, error: lastError ?? 'Unknown error fetching search results', staleQueryId };
       };
 
-      const fetchWithRefresh = async (pageCount: number, pageCursor?: string) => {
+      const fetchWithRefresh = async (pageCount: number, pageCursor?: string): Promise<SearchPageAttempt> => {
         const firstAttempt = await fetchPage(pageCount, pageCursor);
-        if (firstAttempt.success) {
+        if (firstAttempt.success || !firstAttempt.staleQueryId) {
           return firstAttempt;
         }
-        if (firstAttempt.had404) {
-          await this.refreshQueryIds();
-          const secondAttempt = await fetchPage(pageCount, pageCursor);
-          if (secondAttempt.success) {
-            return secondAttempt;
-          }
-          return { success: false as const, error: secondAttempt.error };
-        }
-        return { success: false as const, error: firstAttempt.error };
+        await this.refreshQueryIds();
+        return fetchPage(pageCount, pageCursor);
       };
 
       const unlimited = limit === Number.POSITIVE_INFINITY;

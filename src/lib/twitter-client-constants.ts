@@ -19,7 +19,7 @@ export const FALLBACK_QUERY_IDS = {
   FavoriteTweet: 'lI07N6Otwv1PhnEgXILM7A',
   DeleteBookmark: 'Wlmlj2-xzyS1GN3a6cj-mQ',
   TweetDetail: '97JF30KziU00483E_8elBA',
-  SearchTimeline: 'M1jEez78PEfVfbQLvlWMvQ',
+  SearchTimeline: '3fEctOs2-FvTB7_mvm1hrQ',
   UserArticlesTweets: '8zBy9h4L90aDL02RsBcCFg',
   UserTweets: '7_KBXBpG0zBPRN6UCIV0-w',
   Bookmarks: 'RV1g3b8n_SGOHwkqKYSCFw',

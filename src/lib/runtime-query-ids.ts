@@ -12,7 +12,19 @@ const DISCOVERY_PAGES: string[] = [
   'https://x.com/settings/profile',
 ];
 
-const BUNDLE_URL_REGEX = /https:\/\/abs\.twimg\.com\/responsive-web\/client-web(?:-legacy)?\/[A-Za-z0-9.-]+\.js/g;
+const BUNDLE_URL_REGEXES: RegExp[] = [
+  /https:\/\/abs\.twimg\.com\/x-web\/x-web\/entry-client-[A-Za-z0-9_.-]+\.js/g,
+  /https:\/\/abs\.twimg\.com\/responsive-web\/client-web(?:-legacy)?\/[A-Za-z0-9.-]+\.js/g,
+];
+
+// x-web bundles ship Relay persisted queries (e.g. SearchByRawQuery) whose IDs do not fit the
+// legacy request shapes xbird sends, so SearchTimeline is not discoverable there. twitter-openapi
+// tracks the legacy-shape IDs; it only fills operations listed here so other operations keep
+// their baked-in IDs.
+export const TWITTER_OPENAPI_PLACEHOLDER_URL =
+  'https://raw.githubusercontent.com/fa0311/twitter-openapi/refs/heads/main/src/config/placeholder.json';
+export const TWITTER_OPENAPI_LABEL = 'twitter-openapi:placeholder.json';
+const TWITTER_OPENAPI_OPERATIONS: ReadonlySet<string> = new Set(['SearchTimeline']);
 const QUERY_ID_REGEX = /^[a-zA-Z0-9_-]+$/;
 
 const OPERATION_PATTERNS = [
@@ -146,23 +158,59 @@ async function writeSnapshotToDisk(cachePath: string, snapshot: RuntimeQueryIdSn
   await writeFile(cachePath, `${JSON.stringify(snapshot, null, 2)}\n`, 'utf8');
 }
 
+export function extractBundleUrls(html: string): string[] {
+  const bundles = new Set<string>();
+  for (const regex of BUNDLE_URL_REGEXES) {
+    for (const match of html.matchAll(regex)) {
+      bundles.add(match[0]);
+    }
+  }
+  return [...bundles];
+}
+
 async function discoverBundles(fetchImpl: typeof fetch): Promise<string[]> {
   const bundles = new Set<string>();
   for (const page of DISCOVERY_PAGES) {
     try {
       const html = await fetchText(fetchImpl, page);
-      for (const match of html.matchAll(BUNDLE_URL_REGEX)) {
-        bundles.add(match[0]);
+      for (const url of extractBundleUrls(html)) {
+        bundles.add(url);
       }
     } catch {
       // ignore discovery page failures; other pages often work
     }
   }
-  const discovered = [...bundles];
-  if (discovered.length === 0) {
-    throw new Error('No client bundles discovered; x.com layout may have changed.');
+  return [...bundles];
+}
+
+/**
+ * Reads query IDs for the allowlisted operations from twitter-openapi. Returns an empty map on any
+ * network or parse failure so discovery degrades to bundle results and baked-in IDs.
+ */
+export async function fetchTwitterOpenApiQueryIds(
+  fetchImpl: typeof fetch,
+  operationNames: Iterable<string>,
+): Promise<Map<string, string>> {
+  const found = new Map<string, string>();
+  const wanted = [...operationNames].filter((name) => TWITTER_OPENAPI_OPERATIONS.has(name));
+  if (wanted.length === 0) {
+    return found;
   }
-  return discovered;
+  try {
+    const parsed = JSON.parse(await fetchText(fetchImpl, TWITTER_OPENAPI_PLACEHOLDER_URL)) as Record<
+      string,
+      { queryId?: unknown } | undefined
+    >;
+    for (const name of wanted) {
+      const queryId = parsed[name]?.queryId;
+      if (typeof queryId === 'string' && QUERY_ID_REGEX.test(queryId)) {
+        found.set(name, queryId);
+      }
+    }
+  } catch {
+    return new Map();
+  }
+  return found;
 }
 
 function extractOperations(
@@ -292,6 +340,14 @@ export function createRuntimeQueryIdStore(options: RuntimeQueryIdsOptions = {}):
       const targets = new Set(operationNames);
       const bundleUrls = await discoverBundles(fetchImpl);
       const discovered = await fetchAndExtract(fetchImpl, bundleUrls, targets);
+      const missing = operationNames.filter((name) => !discovered.has(name));
+      const fromOpenApi = await fetchTwitterOpenApiQueryIds(fetchImpl, missing);
+      for (const [name, queryId] of fromOpenApi) {
+        discovered.set(name, { queryId, bundle: TWITTER_OPENAPI_LABEL });
+      }
+      if (bundleUrls.length === 0 && discovered.size === 0) {
+        throw new Error('No client bundles discovered; x.com layout may have changed.');
+      }
       if (discovered.size === 0) {
         return current ?? null;
       }
@@ -310,7 +366,10 @@ export function createRuntimeQueryIdStore(options: RuntimeQueryIdsOptions = {}):
         ids,
         discovery: {
           pages: [...DISCOVERY_PAGES],
-          bundles: bundleUrls.map((url) => url.split('/').at(-1) ?? url),
+          bundles: [
+            ...bundleUrls.map((url) => url.split('/').at(-1) ?? url),
+            ...(fromOpenApi.size > 0 ? [TWITTER_OPENAPI_LABEL] : []),
+          ],
         },
       };
 
