@@ -6,6 +6,11 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import {
+  extractBundleUrls,
+  fetchTwitterOpenApiQueryIds,
+  TWITTER_OPENAPI_LABEL,
+} from '../src/lib/runtime-query-ids.js';
 
 const TARGET_OPERATIONS = [
   'CreateTweet',
@@ -33,9 +38,6 @@ const DISCOVERY_PAGES = [
   'https://x.com/notifications',
   'https://x.com/settings/profile',
 ];
-
-const BUNDLE_URL_REGEX =
-  /https:\/\/abs\.twimg\.com\/responsive-web\/client-web(?:-legacy)?\/[A-Za-z0-9.-]+\.js/g;
 
 const OPERATION_PATTERNS = [
   // Modern bundles export operations like:
@@ -108,19 +110,15 @@ async function discoverBundles(): Promise<string[]> {
   for (const page of DISCOVERY_PAGES) {
     try {
       const html = await fetchText(page);
-      for (const match of html.matchAll(BUNDLE_URL_REGEX)) {
-        bundles.add(match[0]);
+      for (const url of extractBundleUrls(html)) {
+        bundles.add(url);
       }
     } catch (error) {
       console.warn(`[warn] Could not fetch ${page}:`, error instanceof Error ? error.message : error);
     }
   }
 
-  const discovered = Array.from(bundles);
-  if (discovered.length === 0) {
-    throw new Error('No client bundles discovered; x.com layout may have changed.');
-  }
-  return discovered;
+  return Array.from(bundles);
 }
 
 function extractOperations(
@@ -201,6 +199,11 @@ async function main(): Promise<void> {
   const existing = await readExistingIds();
 
   const discovered = await fetchAndExtract(bundleUrls, targets);
+  const missing = TARGET_OPERATIONS.filter((op) => !discovered.has(op));
+  const fromOpenApi = await fetchTwitterOpenApiQueryIds(fetch, missing);
+  for (const [op, queryId] of fromOpenApi) {
+    discovered.set(op as OperationName, { queryId, bundle: TWITTER_OPENAPI_LABEL });
+  }
   if (discovered.size === 0) {
     throw new Error('No query IDs discovered; extraction patterns may need an update.');
   }

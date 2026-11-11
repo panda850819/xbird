@@ -116,6 +116,136 @@ describe('TwitterClient search', () => {
     expect(mockFetch).toHaveBeenCalledTimes(5);
   });
 
+  describe('Internal server error recovery', () => {
+    const okSearchResponse = (id: string) => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: {
+          search_by_raw_query: {
+            search_timeline: {
+              timeline: {
+                instructions: [
+                  {
+                    entries: [
+                      {
+                        content: {
+                          itemContent: {
+                            tweet_results: {
+                              result: {
+                                rest_id: id,
+                                legacy: {
+                                  full_text: 'recovered',
+                                  created_at: '2024-01-01T00:00:00Z',
+                                  conversation_id_str: id,
+                                },
+                                core: { user_results: { result: { legacy: { screen_name: 'root', name: 'Root' } } } },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      }),
+    });
+    const graphqlInternalError = () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ errors: [{ message: 'Internal server error', extensions: {} }] }),
+    });
+    const http500 = () => ({ ok: false, status: 500, text: async () => 'Internal server error' });
+    const queryIdOf = (call: unknown[]) => new URL(call[0] as string).pathname.split('/').at(-2);
+
+    type SearchInternals = {
+      getSearchTimelineQueryIds: () => Promise<string[]>;
+      refreshQueryIds: () => Promise<void>;
+    };
+
+    it('falls back to the next query ID when the first returns a GraphQL Internal server error', async () => {
+      const client = new TwitterClient({ cookies: validCookies });
+      const internals = client as unknown as SearchInternals;
+      internals.getSearchTimelineQueryIds = async () => ['broken', 'working'];
+      const refresh = vi.fn(async () => {});
+      internals.refreshQueryIds = refresh;
+      mockFetch.mockResolvedValueOnce(graphqlInternalError()).mockResolvedValueOnce(okSearchResponse('42'));
+
+      const result = await client.search('needle', 1);
+
+      expect(result.success).toBe(true);
+      expect(result.tweets?.[0].id).toBe('42');
+      expect(mockFetch.mock.calls.map(queryIdOf)).toEqual(['broken', 'working']);
+      expect(refresh).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the next query ID on HTTP 500', async () => {
+      const client = new TwitterClient({ cookies: validCookies });
+      const internals = client as unknown as SearchInternals;
+      internals.getSearchTimelineQueryIds = async () => ['broken', 'working'];
+      mockFetch.mockResolvedValueOnce(http500()).mockResolvedValueOnce(okSearchResponse('43'));
+
+      const result = await client.search('needle', 1);
+
+      expect(result.success).toBe(true);
+      expect(result.tweets?.[0].id).toBe('43');
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('refreshes query IDs once after every ID fails with Internal server error and retries with the new ID', async () => {
+      const client = new TwitterClient({ cookies: validCookies });
+      const internals = client as unknown as SearchInternals;
+      let ids = ['stale-a', 'stale-b'];
+      internals.getSearchTimelineQueryIds = async () => ids;
+      const refresh = vi.fn(async () => {
+        ids = ['fresh'];
+      });
+      internals.refreshQueryIds = refresh;
+      mockFetch
+        .mockResolvedValueOnce(http500())
+        .mockResolvedValueOnce(graphqlInternalError())
+        .mockResolvedValueOnce(okSearchResponse('44'));
+
+      const result = await client.search('needle', 1);
+
+      expect(result.success).toBe(true);
+      expect(result.tweets?.[0].id).toBe('44');
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(mockFetch.mock.calls.map(queryIdOf)).toEqual(['stale-a', 'stale-b', 'fresh']);
+    });
+
+    it('stops after one refresh when Internal server error persists', async () => {
+      const client = new TwitterClient({ cookies: validCookies });
+      const internals = client as unknown as SearchInternals;
+      internals.getSearchTimelineQueryIds = async () => ['a', 'b', 'c'];
+      const refresh = vi.fn(async () => {});
+      internals.refreshQueryIds = refresh;
+      mockFetch.mockImplementation(async () => graphqlInternalError());
+
+      const result = await client.search('needle', 1);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Internal server error');
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledTimes(6);
+    });
+
+    it('sends the twitter-openapi SearchTimeline variables', async () => {
+      mockFetch.mockResolvedValueOnce(okSearchResponse('45'));
+      const client = new TwitterClient({ cookies: validCookies });
+
+      await client.search('needle', 1);
+
+      const vars = JSON.parse(new URL(mockFetch.mock.calls[0][0] as string).searchParams.get('variables') as string);
+      expect(vars).toMatchObject({ withGrokTranslatedBio: true, withQuickPromoteEligibilityTweetFields: false });
+      expect(queryIdOf(mockFetch.mock.calls[0])).toBe('3fEctOs2-FvTB7_mvm1hrQ');
+    });
+  });
+
   it('returns an unknown error when no query IDs are available', async () => {
     const client = new TwitterClient({ cookies: validCookies });
     (client as unknown as { getSearchTimelineQueryIds: () => Promise<string[]> }).getSearchTimelineQueryIds =

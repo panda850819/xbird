@@ -102,7 +102,16 @@ export abstract class TwitterClientBase {
 
   protected async getSearchTimelineQueryIds(): Promise<string[]> {
     const primary = await this.getQueryId('SearchTimeline');
-    return Array.from(new Set([primary, 'M1jEez78PEfVfbQLvlWMvQ', '5h0kNbk3ii97rmfY6CdgAA', 'Tp1sewRU1AsZpBWhqCZicQ']));
+    return Array.from(
+      new Set([
+        primary,
+        QUERY_IDS.SearchTimeline,
+        '6AAys3t42mosm_yTI_QENg',
+        'M1jEez78PEfVfbQLvlWMvQ',
+        '5h0kNbk3ii97rmfY6CdgAA',
+        'Tp1sewRU1AsZpBWhqCZicQ',
+      ]),
+    );
   }
 
   protected formatHttpError(response: Response, body: string, getError?: string): string {
