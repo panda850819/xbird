@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Fixture tests for check-verification-record.sh: each case builds a throwaway
-# git repo with a base commit, applies a PR-shaped change, and asserts the
-# gate's exit status and message.
 set -euo pipefail
 unset PR_NUMBER GITHUB_ACTIONS
 
@@ -41,7 +38,6 @@ commit_pr() {
   git -C "$repo" commit --quiet --allow-empty -m pr
 }
 
-# expect <name> <exit-status> [pattern...]: every pattern must appear in output.
 expect() {
   local name="$1" want="$2" output status pattern ok=1
   shift 2
@@ -104,7 +100,6 @@ pass
 '
 
 record_with() {
-  # record_with <section-to-replace> <body>
   local section="$1" body="$2"
   printf '## What was verified\n%s\n\n## Command\n%s\n\n## Result\n%s\n\n## When\n%s\n' \
     "$([ "$section" = verified ] && printf '%s' "$body" || printf 'gate behaviour')" \
@@ -113,7 +108,6 @@ record_with() {
     "$([ "$section" = when ] && printf '%s' "$body" || printf '2026-11-27 16:40 Asia/Taipei')"
 }
 
-# --- code PR without a record ------------------------------------------------
 new_repo
 put src/app.ts 'export const x = 1;\n'
 commit_pr
@@ -149,7 +143,6 @@ else
   failed=$((failed + 1)); printf 'FAIL %s\n%s\n' "PR_NUMBER names the expected record path" "$output"
 fi
 
-# --- empty, placeholder and incomplete records -------------------------------
 new_repo
 put app.js 'x\n'
 put verifications/42.md ''
@@ -206,7 +199,6 @@ put verifications/42.md "$(record_with when '12345678')"
 commit_pr
 expect "When with a digits-only token is not a SHA" 1 "needs a timestamp with timezone"
 
-# --- valid records -------------------------------------------------------------
 new_repo
 put src/app.ts 'export const x = 1;\n'
 put verifications/42.md "$valid_record"
@@ -257,7 +249,6 @@ git -C "$repo" mv verifications/42.md verifications/44.md
 commit_pr
 expect "renamed record still counts" 0 "PASS (verifications/44.md)"
 
-# --- docs-only exemption --------------------------------------------------------
 new_repo
 put README.md 'changed\n'
 put docs/guide.txt 'guide\n'
@@ -276,7 +267,6 @@ new_repo
 commit_pr
 expect "PR with no changes passes" 0 "no changes against main"
 
-# --- usage errors -------------------------------------------------------------------
 new_repo
 output="$(cd "$repo" && bash "$checker" --base origin/missing 2>&1)" && status=0 || status=$?
 if [ "$status" = 2 ] && printf '%s\n' "$output" | grep -Fq "fetch-depth: 0"; then

@@ -1,11 +1,4 @@
 #!/usr/bin/env bash
-# verification-record gate: a PR that changes any non-doc path must add at
-# least one valid verifications/<pr-number-or-slug>.md record.
-#
-#   PR_NUMBER=123 bash scripts/ci/check-verification-record.sh --base origin/main
-#
-# Exit codes: 0 pass, 1 gate failed, 2 usage or git error.
-# Written for bash 3.2 (macOS) and GNU bash (CI runners); keep it portable.
 set -euo pipefail
 
 RECORD_DIR="verifications"
@@ -57,7 +50,6 @@ is_doc_path() {
   return 1
 }
 
-# Strip surrounding whitespace and punctuation (ASCII and full-width).
 trim_punct() {
   LC_ALL=C sed -E \
     -e 's/^([[:space:][:punct:]]|　|。|，|、|：|；|！|？|（|）|「|」|『|』|…|—|－)+//' \
@@ -73,7 +65,6 @@ is_placeholder_line() {
   return 1
 }
 
-# Map a heading to a section key: verified, command, result, when (or empty).
 section_key() {
   local text part key=""
   text="$(printf '%s' "$1" | LC_ALL=C sed -E -e 's/[[:space:]]*#+[[:space:]]*$//' -e 's/^[0-9]+[.)][[:space:]]*//' | lower)"
@@ -116,7 +107,6 @@ has_timestamp_or_sha() {
   return 1
 }
 
-# Validate one record's content; prints one problem per line, empty when valid.
 record_problems() {
   local content="$1"
   if [ -z "$(printf '%s' "$content" | tr -d '[:space:]')" ]; then
