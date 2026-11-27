@@ -3,6 +3,11 @@
 ## Unit tests (default)
 - `bun run test`
 
+## Verification record (pull requests)
+- A pull request that changes any non-doc path adds `verifications/<pr-number>.md` (format: `verifications/README.md`).
+- CI runs `bash scripts/ci/check-verification-record.sh --base origin/main`; docs-only pull requests (every path `*.md` or under `docs/`) are exempt.
+- Checker self-test: `bash scripts/ci/check-verification-record.test.sh`
+
 ## Live tests (hits Twitter/X)
 
 Runs the CLI against real Twitter/X GraphQL endpoints to verify read-only commands still work.
